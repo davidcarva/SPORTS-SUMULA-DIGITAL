@@ -1,0 +1,1001 @@
+<title>Guia Súmula Digital</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,800;1,900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: uma quadra que se percorre rolando. Cada passo do dia do jogo é uma faixa, com a camisa como número. */
+:root{
+  color-scheme:dark;
+  --chao:#05070f; --placa:#0c1226; --placa2:#161f3d; --linha:rgba(150,170,255,.18);
+  --giz:#f2f4ff; --giz2:#a3aed0;
+  --laranja:#ff6a00; --azul:#2e7dff; --rosa:#ff2e88; --ciano:#00d8ff; --volt:#c8ff1a; --amarelo:#ffd400; --vermelho:#ff3b5c; --violeta:#8b5cf6;
+  --q1:#00b8e6; --q2:#8b5cf6; --q3:#ff6a00; --q4:#ff2e88;
+  --disp:"Barlow Condensed","Arial Narrow",sans-serif;
+  --txt:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth;scroll-padding-top:76px}
+body{background:var(--chao);color:var(--giz);font-family:var(--txt);font-size:16px;line-height:1.55;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:40;background:var(--chao)}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation}
+a{color:inherit}
+h1,h2,h3,p,ul,ol{margin:0;padding:0}
+ul,ol{list-style:none}
+button:focus-visible,a:focus-visible{outline:2px solid #fff;outline-offset:-3px}
+
+.faixa{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.w{max-width:1120px;margin-inline:auto}
+.ch{--c:12px;clip-path:polygon(var(--c) 0,100% 0,100% calc(100% - var(--c)),calc(100% - var(--c)) 100%,0 100%,0 var(--c))}
+.ch-s{--c:7px}.ch-l{--c:22px}
+.oct{--c:20%;clip-path:polygon(var(--c) 0,calc(100% - var(--c)) 0,100% var(--c),100% calc(100% - var(--c)),calc(100% - var(--c)) 100%,var(--c) 100%,0 calc(100% - var(--c)),0 var(--c))}
+.quadro{padding:1.5px;background:var(--linha)}
+.miolo{background:var(--placa);height:100%}
+.d{font-family:var(--disp);font-style:italic;font-weight:900;text-transform:uppercase;line-height:.92;letter-spacing:.005em}
+.r{font-family:var(--disp);font-weight:700;text-transform:uppercase;letter-spacing:.09em}
+.m{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.listras{background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.1) 0 6px,transparent 6px 14px)}
+.mudo{color:var(--giz2)}
+b{font-weight:700}
+
+/* topo */
+.topo{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:rgba(5,7,15,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--linha)}
+.topo .w{display:flex;align-items:center;gap:18px;height:52px}
+.marca{font-size:22px;flex:none;white-space:nowrap}
+.marca i{color:var(--laranja);font-style:inherit}
+.menu{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1;justify-content:flex-end}
+.menu::-webkit-scrollbar{display:none}
+.menu a{flex:none;font-size:14px;padding:6px 10px;color:var(--giz2);text-decoration:none}
+.menu a:hover{color:var(--giz)}
+.trilho{position:relative;height:3px;background:var(--linha)}
+.trilho i{position:absolute;inset:0 auto 0 0;width:100%;transform-origin:left;transform:scaleX(0);background:linear-gradient(90deg,var(--azul),var(--laranja))}
+
+/* abertura */
+.abre{position:relative;overflow:hidden;padding-block:clamp(36px,7vw,84px) clamp(40px,7vw,80px)}
+.abre .art{position:absolute;right:-90px;top:-40px;width:760px;max-width:none;opacity:.34;pointer-events:none}
+.abre .art path,.abre .art circle{fill:none;stroke:var(--ciano);stroke-width:2.5;stroke-dasharray:1;stroke-dashoffset:0}
+.abre .w{position:relative;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(24px,5vw,64px);align-items:center}
+.sobre{font-size:17px;color:var(--ciano)}
+h1{font-size:clamp(3.4rem,9.6vw,7.4rem);margin-top:10px;text-wrap:balance}
+h1 em{font-style:inherit;color:var(--laranja)}
+.lead{font-size:clamp(1.05rem,2vw,1.25rem);max-width:34em;margin-top:18px;color:#d5dbf2}
+.cta{display:inline-flex;align-items:center;gap:10px;margin-top:24px;padding:14px 22px;background:var(--laranja);color:#fff;font-size:21px;text-decoration:none;position:relative;overflow:hidden}
+.cta span{position:relative}
+
+.hplacar .miolo{padding:16px 18px 18px}
+.hplacar{background:linear-gradient(120deg,var(--azul),var(--linha) 50%,var(--laranja))}
+.hp-lin{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.hp-t{display:block;font-size:24px}
+.hp-n{display:block;font-size:clamp(76px,11vw,104px);line-height:.95}
+.hp-b{text-align:right}
+.q-sel{background:linear-gradient(120deg,var(--laranja),var(--rosa));padding:4px 12px;font-size:20px;color:#fff}
+.hp-seq{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--linha)}
+.hp-seq dt{font-size:14px;color:var(--giz2)}
+.hp-seq dd{margin:0;min-width:0;font-size:15px}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.tile{position:relative;background:var(--placa2);padding:8px 10px 9px;min-width:0}
+.tile b{display:block;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile small{font-size:12px;color:var(--giz2)}
+.tile::before{content:"";position:absolute;right:10px;bottom:12px;border-left:9px solid var(--volt);border-block:6px solid transparent}
+
+/* quem faz o quê */
+.seca{padding-block:clamp(44px,7vw,84px);border-top:1px solid var(--linha)}
+.h2{font-size:clamp(2.5rem,6.4vw,4.6rem);text-wrap:balance}
+.tres{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:26px}
+.tres .miolo{padding:18px}
+.tres h3{font-size:30px;margin-top:10px}
+.tres p{margin-top:8px;font-size:15px;color:#d5dbf2}
+.chip{display:inline-block;padding:3px 9px;font-size:14px;color:#05070f}
+
+/* passos */
+.passo{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px 18px;align-items:center}
+.camisa{width:clamp(64px,10vw,92px);aspect-ratio:1;display:grid;place-items:center;font-size:clamp(40px,7vw,60px);color:#fff;background:linear-gradient(140deg,var(--cor,var(--laranja)),color-mix(in oklab,var(--cor,var(--laranja)) 50%,#05070f))}
+.sub{font-size:clamp(1.02rem,1.8vw,1.15rem);color:#d5dbf2;max-width:40em;margin-top:8px}
+.duas{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(18px,4vw,44px);margin-top:28px;align-items:start}
+.lista{display:grid;gap:12px}
+.lista li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px}
+.lista li::before{content:"";width:12px;height:12px;margin-top:7px;background:var(--laranja);transform:skewX(-12deg)}
+
+.mock .miolo{padding:16px}
+.campo{background:var(--placa2);padding:9px 12px;margin-top:4px;font-size:15px}
+.rot{font-size:13px;color:var(--giz2)}
+.elenco{font-family:var(--mono);font-size:14px;line-height:1.75}
+.logo-lin{display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap}
+.logo{width:64px;height:64px;background:#552583;display:grid;place-items:center;flex:none}
+.logo span{display:block;width:30px;height:30px;background:#fdb927;transform:rotate(45deg)}
+.amos{display:flex;gap:6px}
+.amos i{display:block;width:34px;height:30px}
+.lados{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.lado{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;font-size:17px;color:#fff}
+
+/* QR */
+.sync-p{display:grid;grid-template-columns:minmax(0,190px) auto minmax(0,1fr);gap:12px;align-items:center}
+.seta{font-size:30px;color:var(--laranja)}
+.fone-qr{background:#fff;color:#05070f;padding:14px 12px;text-align:center}
+.fone-qr canvas{display:block;width:100%;height:auto}
+.fone-qr small{display:block;font-size:12px;margin-top:6px;font-weight:600}
+.bar5{height:7px;background:#dde;margin-top:8px}
+.bar5 i{display:block;height:100%;width:100%;background:var(--laranja)}
+.visor{position:relative;background:#101626;aspect-ratio:16/10;display:grid;place-items:center;overflow:hidden}
+.visor canvas{width:30%;height:auto;background:#fff;padding:3px}
+.visor .rec{position:absolute;left:10px;top:8px;font-size:12px;display:flex;align-items:center;gap:6px}
+.visor .rec::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--vermelho)}
+.visor .cnt{position:absolute;right:10px;bottom:8px;font-size:12px;color:var(--giz2)}
+.visor::before,.visor::after{content:"";position:absolute;width:26px;height:26px;border:2px solid rgba(255,255,255,.6)}
+.visor::before{right:8px;top:8px;border-left:0;border-bottom:0}
+.visor::after{left:8px;bottom:8px;border-right:0;border-top:0}
+.ban{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;margin-top:12px;font-size:15px;background:rgba(200,255,26,.12);box-shadow:inset 0 0 0 1.5px rgba(200,255,26,.5)}
+.ban b{font-family:var(--disp);font-style:italic;font-weight:900;font-size:20px;text-transform:uppercase;color:var(--volt)}
+.ban.falta{background:rgba(255,59,92,.14);box-shadow:inset 0 0 0 1.5px rgba(255,59,92,.55)}
+.ban.falta b{color:var(--vermelho)}
+.rever{display:inline-flex;margin-top:12px;padding:9px 14px;background:var(--placa2);font-size:15px}
+
+/* simulador */
+.sim{display:grid;grid-template-columns:minmax(0,370px) minmax(0,1fr);grid-template-areas:"fone missao" "fone log";gap:16px clamp(18px,4vw,44px);margin-top:28px;align-items:start}
+.sim-fone{grid-area:fone}.sim-missao{grid-area:missao}.sim-log{grid-area:log}
+.fone{background:linear-gradient(150deg,#39446c,#141a30);padding:9px;border-radius:30px;max-width:370px;margin-inline:auto}
+.tela{position:relative;background:var(--chao);border-radius:22px;overflow:hidden;padding:12px 10px 62px;height:524px}
+.t-placar{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;background:var(--placa);padding:8px 12px}
+.t-sig{display:block;font-size:17px}
+.t-n{display:block;font-size:50px;line-height:1}
+.t-b{text-align:right}
+.t-c{display:flex;flex-direction:column;align-items:center;gap:4px}
+.t-q{background:linear-gradient(120deg,var(--laranja),var(--rosa));font-size:15px;padding:2px 9px;color:#fff}
+.t-hora{font-size:11px;color:var(--giz2);height:18px;line-height:18px;white-space:nowrap}
+.t-hora.par{background:var(--amarelo);color:#05070f;padding:0 5px;font-weight:700}
+.t-hora.est{background:var(--vermelho)}
+.barra{position:relative;height:62px;margin-top:8px;width:100%;display:flex;align-items:center;gap:10px;padding:0 12px;overflow:hidden;text-align:left}
+.barra.parar{background:var(--amarelo);color:#05070f}
+.barra.parar b{display:block;font-size:24px}
+.barra.parar small{display:block;font-size:11px;font-weight:600}
+.pico{width:30px;height:30px;flex:none;border:3px solid currentColor;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800}
+.barra.corre{background:color-mix(in oklab,var(--amarelo) 18%,var(--placa));box-shadow:inset 0 0 0 2px var(--amarelo);padding-right:8px}
+.barra.corre.est{background:color-mix(in oklab,var(--vermelho) 20%,var(--placa));box-shadow:inset 0 0 0 2px var(--vermelho)}
+.b-info{min-width:0;flex:1}
+.b-mot{display:block;font-size:12px;color:var(--amarelo);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.est .b-mot,.est .b-res{color:var(--vermelho)}
+.b-tmp{font-size:30px}
+.b-res{font-size:12px;font-weight:600;color:var(--amarelo);margin-left:6px;white-space:nowrap}
+.retomar{flex:none;background:var(--volt);color:#05070f;height:44px;padding:0 13px;font-size:19px}
+.b-prog{position:absolute;inset:auto 0 0;height:4px;background:rgba(255,255,255,.12)}
+.b-prog i{display:block;height:100%;background:var(--amarelo)}
+.est .b-prog i{background:var(--vermelho)}
+.abas{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.aba{height:42px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;background:var(--placa2);color:var(--giz2)}
+.aba b{font-size:18px}.aba small{font-size:11px}
+.aba.on{color:#fff;background:var(--cor)}
+.colet{display:flex;align-items:center;gap:8px;height:44px;margin-top:4px}
+.colet>div{flex:1;min-width:0}
+.colet small{display:block;font-size:10px;color:var(--giz2)}
+.pips{display:flex;align-items:center;gap:3px;margin-top:2px}
+.pips i{width:11px;height:11px;transform:skewX(-12deg);box-shadow:inset 0 0 0 1px var(--linha)}
+.pips i.on{background:var(--laranja);box-shadow:none}
+.pips em{font-style:normal;background:var(--vermelho);font-size:10px;padding:0 4px;margin-left:3px;white-space:nowrap}
+.mini{height:36px;padding:0 9px;background:var(--placa2);font-size:12px;white-space:nowrap;flex:none}
+.mini:disabled{opacity:.4;cursor:default}
+.linh{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px;height:60px;border-bottom:1px solid var(--linha)}
+.quem{display:grid;grid-template-columns:34px minmax(0,1fr);gap:8px;align-items:center;text-align:left;min-width:0;padding:4px 0}
+.num{width:34px;height:34px;display:grid;place-items:center;font-size:19px;color:#fff;background:var(--cor)}
+.nm{display:block;font-size:15px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{display:flex;align-items:center;gap:5px;margin-top:4px;white-space:nowrap}
+.meta .fal{display:flex;gap:2px}
+.meta .fal i{width:8px;height:10px;transform:skewX(-12deg);box-shadow:inset 0 0 0 1px var(--linha)}
+.meta .fal i.on{background:var(--giz);box-shadow:none}
+.meta .fal i.gr{background:var(--vermelho);box-shadow:none}
+.meta b{font-size:14px}
+.excl{background:rgba(255,59,92,.2);color:var(--vermelho);font-size:10px;padding:0 4px}
+.out .quem{opacity:.6}
+.acts{display:flex;gap:3px}
+.bt{width:38px;height:46px;font-size:18px;color:var(--ink,#fff);background:var(--cor);position:relative}
+.bt.f{background:transparent;color:var(--giz);box-shadow:inset 0 0 0 2px rgba(242,244,255,.55)}
+.alvo{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,255,255,.24);box-shadow:0 0 0 2px #fff;pointer-events:none;z-index:6;animation:alvo 1.15s ease-out infinite}
+@keyframes alvo{0%{transform:scale(.55);opacity:1}100%{transform:scale(1.35);opacity:0}}
+.toast{position:absolute;left:8px;right:8px;bottom:8px;z-index:5;display:flex;align-items:center;gap:8px;background:#1b2547;padding:7px 7px 7px 12px;font-size:13px;line-height:1.25;min-height:46px}
+.toast span{flex:1;min-width:0}
+.toast button{flex:none;background:var(--placa);padding:7px 9px;font-size:13px}
+.fundo{position:absolute;inset:0;background:rgba(3,5,12,.7);z-index:7}
+.folha{position:absolute;inset:auto 0 0;z-index:8;background:var(--placa);padding:14px 12px 14px;max-height:100%;overflow:auto;border-top:2px solid var(--linha)}
+.fo-t{font-size:30px}
+.fo-h{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.op{min-height:46px;padding:6px 10px;background:var(--placa2);text-align:left;font-size:14px}
+.op.tt{min-height:62px;color:#fff;background:var(--cor)}
+.op.tt b{display:block;font-size:21px}.op.tt small{font-size:11px}
+.op.v{font-size:32px;text-align:center;color:#fff;background:var(--cor);min-height:66px}
+.op.gr{color:var(--vermelho);box-shadow:inset 0 0 0 1.5px var(--vermelho);background:transparent}
+.op.w{grid-column:1/-1}
+.fo-r{font-size:12px;color:var(--giz2);margin:10px 0 5px}
+.canc{width:100%;margin-top:10px;background:var(--placa2);padding:10px;font-size:15px;color:var(--giz2)}
+
+.sim-missao .miolo,.sim-log .miolo{padding:16px}
+.mis li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;padding:7px 0;color:var(--giz2);align-items:start}
+.mis li i{width:24px;height:24px;display:grid;place-items:center;font-style:normal;font-size:15px;background:var(--placa2);font-family:var(--disp);font-weight:700}
+.mis li.ag{color:var(--giz);font-weight:600}
+.mis li.ag i{background:var(--laranja);color:#fff}
+.mis li.ok i{background:var(--volt);color:#05070f}
+.mis-fim{margin-top:6px;color:var(--volt);font-weight:600;min-height:1.55em}
+.sim-log h3,.sim-missao h3{font-size:26px;margin-bottom:8px}
+.cont{display:flex;gap:18px;margin-bottom:8px}
+.cont b{display:block;font-size:42px;line-height:1}
+.cont small{font-size:13px;color:var(--giz2)}
+.log{height:236px;overflow:hidden}
+.log li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--linha);font-size:14px}
+.log .m{font-size:12px;color:var(--giz2)}
+.log span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-size:13px;padding:1px 7px;white-space:nowrap}
+.tag.c{background:var(--volt);color:#05070f}
+.tag.s{background:var(--placa2);color:var(--giz2)}
+.tag.p{background:var(--amarelo);color:#05070f}
+.log-vz{color:var(--giz2);font-size:14.5px;padding-top:10px;border-top:1px solid var(--linha)}
+
+.paradas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:22px}
+.paradas li{background:var(--placa);padding:12px 14px}
+.paradas b{display:block;font-size:38px;line-height:1}
+.paradas small{font-size:14px;color:#d5dbf2}
+
+/* fechar */
+.cadeia{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:26px}
+.cadeia li{background:var(--placa);padding:14px;min-width:0}
+.cadeia b{display:block;font-size:26px;margin-bottom:6px}
+.cadeia span{font-size:14.5px;color:#d5dbf2}
+
+/* sincronia */
+.diag .miolo{padding:clamp(14px,3vw,24px)}
+.pista{margin-top:12px}
+.trk-n{position:absolute;left:16px;top:0;line-height:38px;font-size:15px;color:#d5dbf2;white-space:nowrap}
+.trk{position:relative;height:38px;margin-top:30px;background:var(--placa2)}
+.trk.sum{background:#1a2650}
+.pino{position:absolute;top:-6px;bottom:-6px;width:3px;background:#fff}
+.pino.qr{background:var(--ciano)}.pino.tq{background:var(--laranja)}
+.pino small{position:absolute;bottom:100%;white-space:nowrap;font-size:11.5px;font-family:var(--mono);margin-bottom:2px}
+.pino.qr small{left:0;color:var(--ciano)}.pino.tq small{right:0;color:var(--laranja)}
+.cortado{position:absolute;top:0;bottom:0;left:87.875%;width:max(1.56%,7px);background:var(--volt)}
+#fio{position:absolute;left:89.125%;width:2px;background:var(--laranja);transform-origin:top}
+.pistas{position:relative}
+.calc{display:grid;gap:8px;margin-top:20px}
+.calc li{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;font-size:15.5px;transition:opacity .25s}
+.calc i{width:24px;height:24px;display:grid;place-items:center;font-style:normal;background:var(--placa2);font-family:var(--disp);font-weight:700}
+.tocando .calc li{opacity:.42}.tocando .calc li.on{opacity:1}
+.zoom{margin-top:22px}
+.z-bar{display:flex;height:44px;margin-top:8px}
+.z-a{width:80%;background:color-mix(in oklab,var(--volt) 24%,var(--placa2));display:grid;place-items:center;font-size:17px}
+.z-d{width:20%;background:var(--volt);color:#05070f;display:grid;place-items:center;font-size:17px;white-space:nowrap}
+.z-l{position:relative;height:20px;margin-top:5px;font-size:12px;color:var(--giz2)}
+.z-l span{position:absolute}
+.cmd{display:flex;align-items:center;gap:10px;background:#000;padding:10px 12px;margin-top:14px}
+.cmd code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;font-family:var(--mono);font-size:13.5px;color:var(--volt);scrollbar-width:none}
+.cmd button{flex:none;background:var(--placa2);padding:7px 11px;font-size:14px}
+
+/* saídas */
+.saidas{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,.62fr) minmax(0,1fr);gap:14px;margin-top:28px;align-items:stretch}
+.saidas .miolo{padding:14px}
+.saidas h3{font-size:27px}
+.saidas p{font-size:14.5px;color:#d5dbf2;margin-top:5px}
+.fol{background:#fff;color:#0e1220;margin-top:12px;font-size:12px}
+.fol-h{background:#060912;color:#fff;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;font-size:17px;border-bottom:3px solid var(--laranja)}
+.fol-t{background:var(--violeta);color:#fff;padding:3px 10px;font-weight:700;font-size:12px}
+.fol-l{display:grid;grid-template-columns:22px minmax(52px,.9fr) 46px minmax(0,1.5fr) 18px;gap:6px;align-items:center;padding:4px 10px;border-bottom:1px solid #e4e7ef;font-weight:600}
+.fbox,.cbox{display:flex;gap:2px}
+.fbox i{width:7px;height:13px;box-shadow:inset 0 0 0 1px #cdd2df}
+.fbox i.on{background:#0e1220;box-shadow:none}
+.fbox i.gr{background:var(--vermelho);box-shadow:none}
+.cbox i{width:14px;height:14px;display:grid;place-items:center;font-style:normal;font-size:9.5px;font-weight:700;color:#fff}
+.sto{position:relative;margin-top:12px;aspect-ratio:9/16;max-width:190px;background:radial-gradient(80% 45% at 50% 34%,#8a3a00,#060912);padding:12px 10px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:space-between}
+.sto b{font-size:clamp(30px,3.6vw,38px);text-shadow:2px 3px 0 var(--laranja)}
+.sto-p{display:flex;gap:6px;width:100%}
+.sto-p div{flex:1;background:var(--laranja);text-align:center;padding:4px 0;font-size:30px}
+.sto-p div+div{background:#172a57}
+.sto-c{width:100%;background:var(--placa);padding:7px 7px 9px;transform:rotate(-2deg)}
+.sto-c small+div{margin-bottom:7px}
+.sto-q{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;width:100%;font-size:21px;text-align:center}
+.sto-q span{border-top:4px solid var(--c);padding-top:3px}
+.sto-c div{display:flex;gap:2px;margin-top:3px}
+.sto-c div i{width:11px;height:11px}
+.sto-c small{font-size:9px;font-weight:600}
+.cli{display:grid;gap:7px;margin-top:12px}
+.cli li{display:grid;grid-template-columns:44px minmax(0,1fr);gap:9px;align-items:center;background:var(--placa2);padding:6px}
+.cli .tb{height:32px;background:linear-gradient(130deg,#26406f,#0f1830);display:grid;place-items:center}
+.cli .tb::after{content:"";border-left:10px solid #fff;border-block:6px solid transparent}
+.cli b{display:block;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cli small{font-size:12px;color:var(--giz2)}
+
+/* problemas */
+.faq{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:26px}
+.faq li{background:var(--placa);padding:16px}
+.faq b{display:block;font-size:25px;margin-bottom:5px}
+.faq span{font-size:15px;color:#d5dbf2}
+.fim{padding-block:30px;border-top:1px solid var(--linha);color:var(--giz2);font-size:14px}
+
+@media (max-width:860px){
+  .abre .w,.duas{grid-template-columns:minmax(0,1fr)}
+  .abre .art{opacity:.2;right:-300px}
+  .tres,.saidas{grid-template-columns:minmax(0,1fr)}
+  .sto{max-width:180px}
+  .sim{grid-template-columns:minmax(0,1fr);grid-template-areas:"missao" "fone" "log"}
+  .paradas{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cadeia{grid-template-columns:minmax(0,1fr)}
+  .faq{grid-template-columns:minmax(0,1fr)}
+  .marca{font-size:20px}
+}
+@media (max-width:440px){
+  .sync-p{grid-template-columns:minmax(0,1fr)}
+  .fone-qr{max-width:190px}
+  .seta{display:none}
+  .menu{justify-content:flex-start}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.alvo{animation:none}}
+</style>
+
+<header class="topo">
+  <div class="faixa"><div class="w">
+    <span class="marca d">Súmula <i>Digital</i></span>
+    <nav class="menu r" aria-label="Partes do guia">
+      <a href="#antes">Antes</a><a href="#testar">Testar</a><a href="#fechar">Fim do jogo</a><a href="#clipes">Clipes</a><a href="#saidas">Súmula e story</a><a href="#problemas">Problemas</a>
+    </nav>
+  </div></div>
+  <div class="trilho"><i id="prog"></i></div>
+</header>
+
+<section class="abre faixa">
+  <svg class="art" viewBox="0 0 760 620" aria-hidden="true">
+    <path class="risco" pathLength="1" d="M120 20H700V600H120Z"/>
+    <path class="risco" pathLength="1" d="M300 20V270H520V20"/>
+    <circle class="risco" pathLength="1" cx="410" cy="270" r="110"/>
+    <path class="risco" pathLength="1" d="M165 20V180C165 430 320 500 410 500S655 430 655 180V20"/>
+  </svg>
+  <div class="w">
+    <div>
+      <p class="sobre r">Basquete · guia do mesário</p>
+      <h1 class="d">Anote a cesta. <em>O clipe sai sozinho.</em></h1>
+      <p class="lead">Um celular marca cada lance, outro filma o jogo e o computador junta os dois. No fim, cada atleta tem os próprios clipes de 15 segundos.</p>
+      <a class="cta ch d" href="#testar"><span class="listras" style="position:absolute;inset:0"></span><span>Testar a tela do jogo</span></a>
+    </div>
+    <div class="quadro hplacar ch ch-l" id="hero" aria-label="Exemplo: placar, horário do toque e clipes">
+      <div class="miolo ch ch-l">
+        <div class="hp-lin">
+          <div><span class="hp-t d" style="color:var(--azul)">ENG</span><span class="hp-n d" id="hA">12</span></div>
+          <span class="q-sel d ch ch-s">3ºQ</span>
+          <div class="hp-b"><span class="hp-t d" style="color:var(--laranja)">DIR</span><span class="hp-n d" id="hB">9</span></div>
+        </div>
+        <dl class="hp-seq">
+          <dt class="r">Toque</dt><dd id="hTq"><b>ENG +2 · #7 João</b></dd>
+          <dt class="r">Horário</dt><dd class="m" id="hHr">15:44:12.3</dd>
+        </dl>
+        <div class="tiles" id="hTiles">
+          <div class="tile ch ch-s"><b class="d">#7 João</b><small>+2 · 15 s</small></div>
+          <div class="tile ch ch-s"><b class="d">#8 Bruno</b><small>+3 · 15 s</small></div>
+          <div class="tile ch ch-s"><b class="d">#4 Matheus</b><small>+2 · 15 s</small></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="seca faixa">
+  <div class="w">
+    <h2 class="h2 d">Três aparelhos, um trabalho cada</h2>
+    <div class="tres">
+      <div class="quadro ch rev"><div class="miolo ch">
+        <span class="chip r ch ch-s" style="background:var(--azul);color:#fff">Celular 1 · mesa</span>
+        <h3 class="d">Anota</h3>
+        <p>O mesário usa o app da súmula. Cada toque guarda quem fez, o quê e a hora exata.</p>
+      </div></div>
+      <div class="quadro ch rev"><div class="miolo ch">
+        <span class="chip r ch ch-s" style="background:var(--amarelo)">Celular 2 · tripé</span>
+        <h3 class="d">Filma</h3>
+        <p>Grava com o app normal de câmera. Não precisa instalar nada nem estar conectado ao outro.</p>
+      </div></div>
+      <div class="quadro ch rev"><div class="miolo ch">
+        <span class="chip r ch ch-s" style="background:var(--volt)">Computador · depois</span>
+        <h3 class="d">Corta</h3>
+        <p>Recebe a súmula sozinho, encontra o vídeo do jogo, corta um clipe por lance e avisa o celular.</p>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<section class="seca faixa" id="antes">
+  <div class="w">
+    <div class="passo">
+      <span class="camisa oct d" style="--cor:var(--azul)">1</span>
+      <div><h2 class="h2 d">Monte o jogo</h2><p class="sub">Leva dois minutos e só precisa ser feito uma vez por partida.</p></div>
+    </div>
+    <div class="duas">
+      <ul class="lista">
+        <li><span><b>Nome e sigla dos times.</b> A sigla aparece no placar, então use até 4 letras.</span></li>
+        <li><span><b>Jogadores, um por linha:</b> número e nome, como <span class="m">7 João</span>.</span></li>
+        <li><span><b>Cores.</b> Escolha uma pronta, qualquer outra, ou envie a logo ou um print: o app acha as cores e sugere a da esquerda e a da direita.</span></li>
+        <li><span><b>Elenco mudou no meio do jogo?</b> Corrija ou adicione na aba Súmula.</span></li>
+      </ul>
+      <div class="quadro mock ch rev"><div class="miolo ch" id="cfg">
+        <div class="rot r">Time A · jogadores</div>
+        <div class="campo elenco ch ch-s" id="elenco"><div>4 Matheus</div><div>7 João</div><div>10 Pedro</div></div>
+        <div class="rot r" style="margin-top:14px">Cores a partir de uma imagem</div>
+        <div class="logo-lin">
+          <div class="logo oct" role="img" aria-label="Logo de exemplo, roxa e dourada"><span></span></div>
+          <div class="amos" id="amos"><i class="ch ch-s" style="background:#6a3a9a"></i><i class="ch ch-s" style="background:#fdb927"></i><i class="ch ch-s" style="background:#fff"></i></div>
+        </div>
+        <div class="lados">
+          <div class="lado r ch ch-s" id="ladoE" style="background:#6a3a9a">Esquerda<span>A</span></div>
+          <div class="lado r ch ch-s" id="ladoD" style="background:#fdb927;color:#05070f">Direita<span>B</span></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<section class="seca faixa">
+  <div class="w">
+    <div class="passo">
+      <span class="camisa oct d" style="--cor:var(--ciano)">2</span>
+      <div><h2 class="h2 d">Mostre o QR para a câmera</h2><p class="sub">É isso que acerta o vídeo com a súmula. A câmera só filma a tela; quem lê o QR é o computador, depois do jogo.</p></div>
+    </div>
+    <div class="duas">
+      <div class="quadro mock ch rev"><div class="miolo ch" id="syncBox">
+        <div class="sync-p">
+          <div class="fone-qr ch ch-s"><canvas id="qrA" width="250" height="250" aria-label="QR de exemplo"></canvas><div class="bar5"><i id="qrBar"></i></div><small>Mostre para a câmera</small></div>
+          <span class="seta d" aria-hidden="true">›››</span>
+          <div class="visor ch ch-s"><canvas id="qrB" width="250" height="250" aria-hidden="true"></canvas><span class="rec m">REC</span><span class="cnt m" id="qrT">00:05</span></div>
+        </div>
+        <div class="ban ch ch-s" id="ban"><b id="banB">Câmera ok</b><span id="banS">pronto, é só uma vez</span></div>
+        <button class="rever r ch ch-s" id="qrRe" type="button">Ver de novo</button>
+      </div></div>
+      <ol class="lista">
+        <li><span><b>Câmera no tripé,</b> o mais alto possível, pegando a quadra inteira, em 1080p e no modo avião.</span></li>
+        <li><span><b>Comece a gravar primeiro.</b> Sem gravação rodando, o QR não fica no vídeo.</span></li>
+        <li><span><b>Toque em Sincronizar</b> e segure a tela a 30–50 cm da câmera até a barra encher (5 segundos).</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="seca faixa" id="testar">
+  <div class="w">
+    <div class="passo">
+      <span class="camisa oct d" style="--cor:var(--laranja)">3</span>
+      <div><h2 class="h2 d">Marque o jogo</h2><p class="sub">Esta é a tela de verdade, em versão de treino. Toque nos botões e siga as tarefas. O que você fizer aqui não salva nada.</p></div>
+    </div>
+    <div class="sim">
+      <div class="sim-fone"><div class="fone"><div class="tela" id="tela">
+        <div class="t-placar ch ch-s">
+          <div><span class="t-sig d" style="color:var(--azul)">ENG</span><span class="t-n d" id="nA">0</span></div>
+          <div class="t-c"><span class="t-q d ch ch-s">1ºQ</span><span class="t-hora m" id="tHora">00:00:00</span></div>
+          <div class="t-b"><span class="t-sig d" style="color:var(--laranja)">DIR</span><span class="t-n d" id="nB">0</span></div>
+        </div>
+        <div id="zBarra"></div>
+        <div class="abas" id="abas"></div>
+        <div class="colet">
+          <div><small class="r" id="coletT">Coletivas 1ºQ</small><div class="pips" id="pips"></div></div>
+          <button class="mini r ch ch-s" id="marcar" type="button">Marcar agora</button>
+          <button class="mini r ch ch-s" id="desf" type="button" disabled>Desfazer</button>
+        </div>
+        <div id="linhas"></div>
+        <div class="toast ch ch-s" id="toast" hidden><span id="toastT"></span><button class="r ch ch-s" id="toastU" type="button">Desfazer</button></div>
+        <div class="fundo" id="fundo" hidden></div>
+        <div class="folha" id="folha" hidden></div>
+        <div class="alvo" id="alvo" hidden></div>
+      </div></div></div>
+
+      <div class="sim-missao quadro ch"><div class="miolo ch">
+        <h3 class="d">Tarefas</h3>
+        <ol class="mis" id="mis"></ol>
+        <p class="mis-fim" id="misF" aria-live="polite"></p>
+        <button class="rever r ch ch-s" id="simRe" type="button" style="margin-top:6px">Recomeçar treino</button>
+      </div></div>
+
+      <div class="sim-log quadro ch"><div class="miolo ch">
+        <h3 class="d">O que o app guardou</h3>
+        <div class="cont">
+          <div><b class="d" id="cClip" style="color:var(--volt)">0</b><small>viram clipe</small></div>
+          <div><b class="d" id="cOut">0</b><small>só na súmula</small></div>
+        </div>
+        <ul class="log" id="log"><li class="log-vz" style="display:block">Cada toque aparece aqui com a hora exata.</li></ul>
+      </div></div>
+    </div>
+
+    <h3 class="d" style="font-size:clamp(1.9rem,4vw,2.8rem);margin-top:44px">Quando o jogo parar, toque na faixa amarela</h3>
+    <p class="sub">O cronômetro começa no toque. Se passar da duração normal, fica vermelho e o celular apita. Na tarefa acima, o tempo corre 10 vezes mais rápido para você ver isso acontecer.</p>
+    <ul class="paradas">
+      <li class="ch rev"><b class="d">1 min</b><small>Pedido de tempo</small></li>
+      <li class="ch rev"><b class="d">2 min</b><small>Intervalo entre quartos (começa sozinho no Fim do quarto)</small></li>
+      <li class="ch rev"><b class="d">10 min</b><small>Intervalo do meio</small></li>
+      <li class="ch rev"><b class="d">3 min</b><small>Lesão, falta grave, arbitragem e outras</small></li>
+    </ul>
+    <p class="sub" style="margin-top:14px">Dá para mudar essas durações na aba Súmula. Se alguém marcar cesta com o jogo parado, o app encerra a parada no horário da cesta.</p>
+  </div>
+</section>
+
+<section class="seca faixa" id="fechar">
+  <div class="w">
+    <div class="passo">
+      <span class="camisa oct d" style="--cor:var(--rosa)">4</span>
+      <div><h2 class="h2 d">Feche o jogo</h2><p class="sub">A súmula vai sozinha. Só o vídeo precisa chegar ao computador.</p></div>
+    </div>
+    <ol class="cadeia">
+      <li class="ch rev"><b class="d">Encerrar</b><span>Toque em Encerrar no app.</span></li>
+      <li class="ch rev"><b class="d">Parar a câmera</b><span>Pare a gravação.</span></li>
+      <li class="ch rev"><b class="d">Mandar o vídeo</b><span>Pelo Google Drive ou por cabo, para a pasta do computador.</span></li>
+    </ol>
+  </div>
+</section>
+
+<section class="seca faixa" id="clipes">
+  <div class="w">
+    <div class="passo">
+      <span class="camisa oct d" style="--cor:var(--volt);color:#05070f">5</span>
+      <div><h2 class="h2 d">O computador acerta o tempo</h2><p class="sub">A súmula sabe a hora de cada cesta, mas não sabe em que minuto do vídeo ela caiu. O QR filmado responde isso.</p></div>
+    </div>
+    <div class="quadro diag ch rev" style="margin-top:28px"><div class="miolo ch" id="diag">
+      <p class="r mudo" style="font-size:15px">Exemplo</p>
+      <div class="pistas" id="pistas">
+        <div class="pista">
+          <div class="trk sum" id="trkS"><span class="trk-n r">Relógio do mesário</span><span class="pino qr" style="left:.56%"><small>QR 15:30:02,1</small></span><span class="pino tq" style="left:89.1%"><small>Cesta 15:44:12,3</small></span></div>
+        </div>
+        <div class="pista" style="margin-top:6px">
+          <div class="trk" id="trkV"><span class="trk-n r">Vídeo da câmera</span><span class="pino qr" style="left:.56%"><small>QR 00:05,4</small></span><span class="pino tq" id="pV" style="left:89.1%"><small>14:15,6</small></span><span class="cortado" id="corte"></span></div>
+        </div>
+      </div>
+      <ol class="calc" id="calc">
+        <li data-c="1"><i>1</i><span>O computador acha o QR no vídeo: no segundo <b class="m">00:05,4</b>, o relógio do mesário marcava <b class="m">15:30:02,1</b>.</span></li>
+        <li data-c="2"><i>2</i><span>Com isso, os dois relógios se encaixam. A cesta veio <b class="m">14:10,2</b> depois do QR, então caiu em <b class="m">14:15,6</b> do vídeo.</span></li>
+        <li data-c="3"><i>3</i><span>O clipe começa 12 segundos antes do toque e termina 3 segundos depois, porque o mesário sempre anota depois da jogada.</span></li>
+      </ol>
+      <div class="zoom">
+        <div class="z-bar ch ch-s" id="zBar"><div class="z-a r">12 s antes</div><div class="z-d r">3 s</div></div>
+        <div class="z-l m"><span style="left:0">14:03,6</span><span style="right:20%;color:var(--laranja)">toque 14:15,6</span><span style="right:0">14:18,6</span></div>
+      </div>
+      <button class="rever r ch ch-s" id="diagRe" type="button">Ver de novo</button>
+    </div></div>
+    <div class="duas">
+      <div>
+        <h3 class="d" style="font-size:32px">No computador</h3>
+        <p class="sub">Deixe o servidor aberto. O resto ele faz sozinho:</p>
+        <div class="cmd ch ch-s"><code id="cmd">.venv\Scripts\python servidor.py</code><button class="r ch ch-s" id="copiar" type="button">Copiar</button></div>
+      </div>
+      <ul class="lista" style="align-self:end">
+        <li><span>Quando terminar, o celular avisa: cortes prontos, com o nome dos dois times.</span></li>
+        <li><span>Pontos e lances sem ponto viram clipe. Faltas e paradas ficam só na súmula.</span></li>
+        <li><span>Corrigiu um lance depois de encerrar? O app reenvia e os clipes são refeitos.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="seca faixa" id="saidas">
+  <div class="w">
+    <div class="passo">
+      <span class="camisa oct d" style="--cor:var(--violeta)">6</span>
+      <div><h2 class="h2 d">Entregue o jogo</h2><p class="sub">A aba Análise mostra pontos por quarto, fluxo do placar, paradas e cestinhas. A aba Súmula gera o resto. Os exemplos abaixo usam dados fictícios.</p></div>
+    </div>
+    <div class="saidas">
+      <div class="quadro ch rev"><div class="miolo ch">
+        <h3 class="d">Súmula em PDF</h3>
+        <p>Cada casa é uma cesta. A cor diz em que quarto ela saiu.</p>
+        <div class="fol ch ch-s">
+          <div class="fol-h d"><span>Eng × Dir</span><span>56 × 48</span></div>
+          <div class="fol-t">ENGENHARIA</div>
+          <div class="fol-l"><span>7</span><span>João</span><span class="fbox"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span><span class="cbox" data-c="2:1 2:1 3:2 2:3 2:4"></span><span>11</span></div>
+          <div class="fol-l"><span>4</span><span>Matheus</span><span class="fbox"><i class="on"></i><i class="gr"></i><i></i><i></i><i></i></span><span class="cbox" data-c="3:1 2:2 2:3 2:4"></span><span>9</span></div>
+          <div class="fol-l"><span>10</span><span>Pedro</span><span class="fbox"><i></i><i></i><i></i><i></i><i></i></span><span class="cbox" data-c="1:1 2:2 2:2"></span><span>5</span></div>
+        </div>
+      </div></div>
+      <div class="quadro ch rev"><div class="miolo ch">
+        <h3 class="d">Story</h3>
+        <div class="sto ch ch-s" role="img" aria-label="Exemplo de story com placar e cestinha">
+          <b class="d">Vitória</b>
+          <div class="sto-p d"><div>56</div><div>48</div></div>
+          <div class="sto-c ch ch-s"><small class="r">#7 João · cestinha</small><div><i style="background:var(--q1)"></i><i style="background:var(--q1)"></i><i style="background:var(--q2)"></i><i style="background:var(--q3)"></i><i style="background:var(--q4)"></i></div><small class="r">#4 Matheus</small><div><i style="background:var(--q1)"></i><i style="background:var(--q2)"></i><i style="background:var(--q3)"></i><i style="background:var(--q4)"></i></div><small class="r">#10 Pedro</small><div><i style="background:var(--q1)"></i><i style="background:var(--q2)"></i><i style="background:var(--q2)"></i></div></div>
+          <div class="sto-q d"><span style="--c:var(--q1)">14</span><span style="--c:var(--q2)">15</span><span style="--c:var(--q3)">12</span><span style="--c:var(--q4)">15</span></div>
+        </div>
+      </div></div>
+      <div class="quadro ch rev"><div class="miolo ch">
+        <h3 class="d">Clipes</h3>
+        <p>Na galeria, marque cada clipe como Aparece, Cortou ou Errado.</p>
+        <ul class="cli">
+          <li><span class="tb ch ch-s"></span><div><b class="d">#7 João +2</b><small>3ºQ · 15 s</small></div></li>
+          <li><span class="tb ch ch-s"></span><div><b class="d">#8 Bruno +3</b><small>2ºQ · 15 s</small></div></li>
+          <li><span class="tb ch ch-s"></span><div><b class="d">#4 Matheus toco</b><small>1ºQ · 15 s</small></div></li>
+        </ul>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<section class="seca faixa" id="problemas">
+  <div class="w">
+    <h2 class="h2 d">Se algo der errado</h2>
+    <ul class="faq">
+      <li class="ch rev"><b class="d">Marquei o jogador errado</b><span>Logo depois do toque, use Desfazer. Mais tarde, abra a aba Lances e toque no lápis. O horário continua o mesmo.</span></li>
+      <li class="ch rev"><b class="d">Não vi quem fez a cesta</b><span>Toque em Marcar agora. O horário fica guardado e você escolhe o jogador em seguida.</span></li>
+      <li class="ch rev"><b class="d">Esqueci o QR</b><span>Mostre assim que lembrar, com a câmera gravando. Serve em qualquer momento do jogo.</span></li>
+      <li class="ch rev"><b class="d">O vídeo ficou sem QR</b><span>O computador usa a hora gravada no arquivo do vídeo. É menos preciso, por isso avisa e alarga cada clipe em 2 segundos.</span></li>
+      <li class="ch rev"><b class="d">Caiu o vídeo de outro jogo</b><span>Cada QR leva o código do jogo. Se não bater com a súmula, o computador não corta e avisa no celular.</span></li>
+      <li class="ch rev"><b class="d">Esqueci de tocar em Retomar</b><span>A próxima cesta encerra a parada sozinha. Falta não encerra, porque uma técnica pode sair durante a confusão.</span></li>
+    </ul>
+  </div>
+</section>
+
+<footer class="fim faixa"><div class="w">Guia da Súmula Digital · basquete</div></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/motion@13.4.4/dist/motion.js"></script>
+<script>
+(function(){
+"use strict";
+const M=window.Motion||{};
+const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const MOLA={type:"spring",stiffness:520,damping:32};
+const espera=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* Sem Motion ou com movimento reduzido, o elemento só vai para o estado final. */
+function anim(el,kf,op){
+  if(!el)return Promise.resolve();
+  if(M.animate&&!RM)return Promise.resolve(M.animate(el,kf,Object.assign({duration:.4,ease:[.2,.8,.2,1]},op||{})));
+  const alvos=el.length!==undefined&&!el.style?[...el]:[el];
+  alvos.forEach(a=>{for(const k in kf){if(["x","y","scale","scaleX","rotate"].includes(k)){a.style.transform="";continue}const v=kf[k];a.style[k]=Array.isArray(v)?v[v.length-1]:v}});
+  return Promise.resolve();
+}
+const vendo=(el,fn,op)=>{if(M.inView&&el)return M.inView(el,fn,op||{margin:"0px 0px -12% 0px"});return ()=>{}};
+
+/* -------- entrada: tudo já visível; ao chegar, só assenta */
+if(!RM&&M.animate){
+  $$(".rev").forEach(el=>vendo(el,()=>{M.animate(el,{y:[20,0],opacity:[.45,1]},MOLA)}));
+  $$(".camisa").forEach(el=>vendo(el,()=>{M.animate(el,{scale:[.6,1],rotate:[-14,0]},{type:"spring",stiffness:380,damping:18})}));
+  M.animate(".risco",{strokeDashoffset:[1,0]},{duration:1.5,delay:M.stagger?M.stagger(.16):0,ease:"easeInOut"});
+  M.animate("h1",{y:[26,0],opacity:[.2,1]},MOLA);
+}
+if(M.scroll&&!RM){M.scroll(p=>{$("#prog").style.transform="scaleX("+p+")"})}
+else addEventListener("scroll",()=>{const h=document.documentElement;$("#prog").style.transform="scaleX("+(h.scrollTop/Math.max(1,h.scrollHeight-h.clientHeight))+")"},{passive:true});
+
+const p2=x=>String(x).padStart(2,"0");
+const hora=(ms,d)=>{const t=new Date(ms);const b=p2(t.getHours())+":"+p2(t.getMinutes())+":"+p2(t.getSeconds());return d?b+"."+Math.floor(t.getMilliseconds()/100):b};
+const dur=ms=>{const s=Math.max(0,Math.floor(ms/1000));return Math.floor(s/60)+":"+p2(s%60)};
+
+/* -------- abertura: placar que se anota sozinho */
+(function(){
+  if(RM)return;
+  const seq=[["B","#5 Rafael",2],["A","#10 Pedro",1],["A","#7 João",3],["B","#8 Bruno",2],["A","#4 Matheus",2],["B","#11 Thiago",3]];
+  let i=0,on=false,p={A:12,B:9},rel=new Date();rel.setHours(15,44,12,300);
+  const passo=async()=>{
+    if(!on||document.hidden)return;
+    const [t,q,v]=seq[i++%seq.length];
+    p[t]+=v;rel=new Date(rel.getTime()+18300+Math.random()*9000);
+    const n=$("#h"+t);n.textContent=p[t];anim(n,{y:[26,0],opacity:[0,1],skewX:[-10,0]},MOLA);
+    $("#hTq b").textContent=(t==="A"?"ENG":"DIR")+" +"+v+" · "+q;
+    $("#hHr").textContent=hora(rel,true);
+    anim($("#hTq"),{x:[-14,0],opacity:[.2,1]});anim($("#hHr"),{x:[-14,0],opacity:[.2,1]},{delay:.12});
+    const w=$("#hTiles"),nv=w.lastElementChild;
+    nv.querySelector("b").textContent=q;nv.querySelector("small").textContent="+"+v+" · 15 s";
+    w.prepend(nv);anim(nv,{scale:[.7,1],opacity:[0,1]},Object.assign({delay:.28},MOLA));
+    if(p.A+p.B>70){p={A:12,B:9}}
+  };
+  vendo($("#hero"),()=>{on=true;return ()=>{on=false}},{margin:"0px"});
+  setInterval(passo,2700);
+})();
+
+/* -------- passo 1: cores da logo */
+vendo($("#cfg"),()=>{
+  anim($$("#elenco div"),{x:[-16,0],opacity:[.15,1]},{delay:M.stagger?M.stagger(.14):0});
+  anim($$("#amos i"),{scale:[.3,1],opacity:[0,1]},Object.assign({delay:M.stagger?M.stagger(.12,{startDelay:.45}):0},MOLA));
+  anim($("#ladoE"),{x:[-24,0],opacity:[.2,1]},Object.assign({delay:.95},MOLA));
+  anim($("#ladoD"),{x:[24,0],opacity:[.2,1]},Object.assign({delay:1.1},MOLA));
+});
+
+/* -------- passo 2: QR */
+(function(){
+  const A=$("#qrA"),B=$("#qrB"),ca=A.getContext("2d"),cb=B.getContext("2d");
+  const N=21,M0=2,U=250/(N+M0*2);
+  const finder=(x,y,r,c)=>x>=c&&x<c+7&&y>=r&&y<r+7;
+  const desenha=()=>{
+    ca.fillStyle="#fff";ca.fillRect(0,0,250,250);ca.fillStyle="#05070f";
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+      let on=Math.random()>.52;
+      const F=finder(c,r,0,0)?[0,0]:finder(c,r,0,14)?[0,14]:finder(c,r,14,0)?[14,0]:null;
+      if(F){const a=r-F[0],b=c-F[1];on=a===0||a===6||b===0||b===6||(a>1&&a<5&&b>1&&b<5)}
+      else if((r<8&&(c<8||c>12))||(r>12&&c<8))on=false;
+      if(on)ca.fillRect((c+M0)*U,(r+M0)*U,Math.ceil(U),Math.ceil(U));
+    }
+    cb.drawImage(A,0,0);
+  };
+  desenha();
+  let tok=0;
+  const roda=async()=>{
+    if(RM)return;
+    const eu=++tok,t0=performance.now(),ban=$("#ban");
+    ban.classList.add("falta");$("#banB").textContent="Sem sincronia";$("#banS").textContent="mostre o QR";
+    await new Promise(fim=>{
+      const it=setInterval(()=>{
+        if(eu!==tok){clearInterval(it);fim();return}
+        const s=performance.now()-t0;
+        desenha();
+        $("#qrBar").style.width=Math.min(100,s/50)+"%";
+        $("#qrT").textContent="00:"+p2(Math.min(5,Math.floor(s/1000)));
+        if(s>=5000){clearInterval(it);fim()}
+      },100);
+    });
+    if(eu!==tok)return;
+    ban.classList.remove("falta");$("#banB").textContent="Câmera ok";$("#banS").textContent="pronto, é só uma vez";
+    anim(ban,{scale:[.96,1]},MOLA);
+  };
+  let feito=false;
+  vendo($("#syncBox"),()=>{if(!feito){feito=true;roda()}},{amount:.6});
+  $("#qrRe").onclick=roda;
+})();
+
+/* -------- simulador */
+(function(){
+  const T={
+    A:{sig:"ENG",cor:"#2e7dff",ink:"#fff",j:[["A4","4","Matheus"],["A7","7","João"],["A10","10","Pedro"]]},
+    B:{sig:"DIR",cor:"#ff6a00",ink:"#fff",j:[["B5","5","Rafael"],["B8","8","Bruno"],["B11","11","Thiago"]]}
+  };
+  const NOMES={P:"pessoal",T:"técnica",U:"antidesportiva",D:"desqualificante"};
+  const MOT={lesao:"Lesão",falta:"Falta grave / confusão",arbitragem:"Arbitragem / conversa",intervalo:"Intervalo",outro:"Outro"};
+  const LIM={tempo:60,intervalo:120,lesao:180,falta:180,arbitragem:180,outro:180};
+  const VEZES=10; /* no treino, o cronômetro corre 10× mais rápido */
+  const MISSOES=[
+    {txt:"Dê +2 para o João. Basta um toque."},
+    {txt:"Marque uma falta (F) no Matheus."},
+    {txt:"Troque para DIR e dê +3 para o Bruno."},
+    {txt:"Toque em Parar jogo e escolha Tempo ENG."},
+    {txt:"Espere ficar vermelho e toque em Retomar."},
+  ];
+  let S;
+  const novo=()=>({ev:[],t:"A",pausa:null,feitas:[false,false,false,false,false]});
+  const jog=id=>{for(const t of "AB"){const j=T[t].j.find(x=>x[0]===id);if(j)return j}return null};
+  const rot=id=>{const j=jog(id);return j?"#"+j[1]+" "+j[2]:"Sem jogador"};
+  const vivos=()=>S.ev.filter(e=>!e.rem);
+  const pts=(t,id)=>vivos().filter(e=>e.k==="ponto"&&e.t===t&&(id===undefined||e.id===id)).reduce((a,e)=>a+e.v,0);
+  const fal=id=>vivos().filter(e=>e.k==="falta"&&e.id===id);
+  const col=t=>vivos().filter(e=>e.k==="falta"&&e.t===t&&e.id).length;
+  const excl=id=>{const f=fal(id),n=k=>f.filter(x=>x.f===k).length;return f.length>=5||n("D")>0||n("T")+n("U")>=2};
+  const tempos=t=>vivos().filter(e=>e.k==="pausa"&&e.mot==="tempo"&&e.t===t).length;
+
+  /* ---- desenho */
+  function abas(){
+    $("#abas").innerHTML="AB".split("").map(t=>{const on=t===S.t;return '<button type="button" class="aba ch ch-s'+(on?" on":"")+'" data-tab="'+t+'" style="--cor:'+T[t].cor+'" aria-pressed="'+on+'"><b class="d">'+T[t].sig+'</b><small class="r">'+col(t)+" falta"+(col(t)===1?"":"s")+"</small></button>"}).join("");
+  }
+  function linhas(ani){
+    const t=S.t,X=T[t];
+    $("#linhas").innerHTML=X.j.map(([id,n,nm])=>'<div class="linh" data-l="'+id+'"><button type="button" class="quem" data-nome="'+id+'" aria-label="Mais opções para '+nm+'"><span class="num oct d" style="--cor:'+X.cor+'">'+n+'</span><span style="min-width:0"><span class="nm r">'+nm+'</span><span class="meta" data-m="'+id+'"></span></span></button><div class="acts">'+[1,2,3].map(v=>'<button type="button" class="bt d ch ch-s" style="--cor:'+X.cor+'" data-p="'+id+'" data-v="'+v+'" aria-label="+'+v+" para "+nm+'">+'+v+"</button>").join("")+'<button type="button" class="bt f d ch ch-s" data-f="'+id+'" aria-label="Falta pessoal de '+nm+'">F</button></div></div>').join("");
+    metas();
+    if(ani)anim($$("#linhas .linh"),{x:[-14,0],opacity:[.2,1]},{delay:M.stagger?M.stagger(.04):0,duration:.28});
+  }
+  function metas(){
+    $$("[data-m]").forEach(el=>{
+      const id=el.dataset.m,t=S.t,f=fal(id),ex=excl(id),l=el.closest(".linh");
+      l.classList.toggle("out",ex);
+      const pip=ex?'<span class="excl r">Excluído</span>':'<span class="fal">'+[0,1,2,3,4].map(k=>'<i class="'+(f[k]?(f[k].f==="P"?"on":"gr"):"")+'"></i>').join("")+"</span>";
+      const p=pts(t,id);
+      el.innerHTML=pip+'<b class="d" style="color:'+(p?T[t].cor:"var(--giz2)")+'">'+p+" pts</b>";
+    });
+  }
+  function coletivas(){
+    const n=col(S.t);
+    $("#pips").innerHTML=[0,1,2,3].map(k=>'<i class="'+(k<n?"on":"")+'"></i>').join("")+(n>=4?'<em class="r">Estourou · LL</em>':"");
+    $("#desf").disabled=!vivos().some(e=>["ponto","lance","falta"].includes(e.k));
+  }
+  function barra(){
+    const z=$("#zBarra");
+    if(!S.pausa){
+      z.innerHTML='<button type="button" class="barra parar ch" id="parar"><span class="pico" aria-hidden="true">II</span><span><b class="d">Parar jogo</b><small>tempo, lesão, falta grave, arbitragem…</small></span></button>';
+      $("#tHora").classList.remove("par","est");
+      return;
+    }
+    z.innerHTML='<div class="barra corre ch" id="corre" role="status"><div class="b-info"><span class="b-mot r" id="bMot"></span><span class="b-tmp d" id="bT">0:00</span><span class="b-res" id="bR"></span></div><button type="button" class="retomar d ch ch-s" id="retomar">Retomar</button><span class="b-prog"><i id="bP"></i></span></div>';
+    $("#bMot").textContent="Jogo parado · "+S.pausa.nome;
+    tiqueP();
+  }
+  function msP(){return (Date.now()-S.pausa.t)*VEZES}
+  function tiqueP(){
+    if(!S.pausa)return;
+    const ms=msP(),lim=S.pausa.lim*1000,over=ms>=lim;
+    $("#corre").classList.toggle("est",over);
+    $("#bT").textContent=dur(ms);
+    $("#bR").textContent=over?"+"+dur(ms-lim)+" acima":"de "+dur(lim);
+    $("#bP").style.width=Math.min(100,ms/lim*100)+"%";
+    const h=$("#tHora");h.classList.add("par");h.classList.toggle("est",over);h.textContent="II "+dur(ms);
+    if(over&&!S.pausa.apitou){S.pausa.apitou=true;anim($("#corre"),{x:[0,-5,5,-4,4,0]},{duration:.4});try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}alvo()}
+  }
+  function placar(t){
+    for(const x of "AB"){const el=$("#n"+x),v=String(pts(x));if(el.textContent!==v){el.textContent=v;anim(el,{y:[20,0],opacity:[0,1],skewX:[-12,0]},MOLA)}}
+  }
+  function tudo(ani){abas();linhas(ani);coletivas();barra();placar();alvo();contadores()}
+
+  /* ---- aviso */
+  let tt;
+  function toast(txt,undo){
+    const b=$("#toast");$("#toastT").textContent=txt;b.hidden=false;$("#toastU").hidden=!undo;$("#toastU").onclick=()=>{undo&&undo();b.hidden=true};
+    clearTimeout(tt);tt=setTimeout(()=>{b.hidden=true},3800);
+    anim(b,{y:[16,0],opacity:[0,1]},MOLA);
+  }
+
+  /* ---- registro */
+  function logar(e){
+    const u=$("#log");const vz=u.querySelector(".log-vz");if(vz)vz.remove();
+    const li=document.createElement("li");li.dataset.e=e.n;
+    const tag=e.k==="pausa"?'<em class="tag p r" style="font-style:normal">Parada</em>':(e.k==="falta"?'<em class="tag s r" style="font-style:normal">Súmula</em>':'<em class="tag c r" style="font-style:normal">Clipe</em>');
+    li.innerHTML='<b class="m">'+hora(e.at,true)+"</b><span>"+e.txt+"</span>"+tag;
+    u.prepend(li);while(u.children.length>6)u.lastChild.remove();
+    anim(li,{x:[-20,0],opacity:[0,1]},MOLA);
+  }
+  function contadores(){
+    const v=vivos(),c=v.filter(e=>e.k==="ponto"||e.k==="lance").length;
+    const a=$("#cClip"),o=$("#cOut"),n=v.length-c;
+    if(a.textContent!==String(c)){a.textContent=c;anim(a,{scale:[1.5,1]},MOLA)}
+    if(o.textContent!==String(n)){o.textContent=n;anim(o,{scale:[1.5,1]},MOLA)}
+  }
+  let seq=0;
+  function desfaz(e){e.rem=true;const li=$('[data-e="'+e.n+'"]');if(li)li.remove();if(!$("#log").children.length)$("#log").innerHTML='<li class="log-vz" style="display:block">Cada toque aparece aqui com a hora exata.</li>';tudo()}
+  function fechaPausa(at){
+    const p=S.pausa;if(!p)return null;S.pausa=null;return p;
+  }
+  function lance(k,t,id,v,f,at){
+    at=at||Date.now();
+    let extra="";
+    if(S.pausa&&k!=="falta"){fechaPausa(at);extra=" · parada encerrada"}
+    const e={n:++seq,k,t,id,v:v||0,f,at};
+    S.ev.push(e);
+    const quem=id?rot(id):"Sem jogador";
+    if(k==="ponto")e.txt=T[t].sig+" +"+v+" · "+quem;
+    else if(k==="lance")e.txt=T[t].sig+" lance · "+quem;
+    else e.txt=T[t].sig+" falta "+NOMES[f]+" · "+(id?quem:"banco");
+    logar(e);tudo();
+    let m=e.txt;
+    if(k==="falta"&&id){m+=" ("+fal(id).length+"ª)";if(excl(id))m+=" · EXCLUÍDO";if(col(t)===4)m+=" · estourou"}
+    else if(k!=="falta")m+=" · "+hora(at,true);
+    toast(m+extra,()=>{desfaz(e)});
+    try{navigator.vibrate&&navigator.vibrate(k==="falta"?[20,50,20]:25)}catch(_){}
+    missoes();
+  }
+
+  /* ---- folhas */
+  const fo=$("#folha"),fu=$("#fundo");
+  function abre(html){fo.innerHTML=html;fo.hidden=false;fu.hidden=false;anim(fo,{y:[60,0],opacity:[.6,1]},MOLA);alvo()}
+  function fecha(){fo.hidden=true;fu.hidden=true;fo.innerHTML="";alvo()}
+  const canc='<button type="button" class="canc r ch ch-s" data-canc="1">Cancelar</button>';
+  let held=0;
+  function folhaParar(t){
+    held=t;
+    const tp=x=>'<button type="button" class="op tt ch ch-s" style="--cor:'+T[x].cor+'" data-pm="tempo" data-pt="'+x+'"><b class="d">Tempo '+T[x].sig+"</b><small>"+tempos(x)+"/2 no 1º tempo</small></button>";
+    abre('<div class="fo-h"><div><small class="r mudo">Parar jogo</small><div class="fo-t d">Por que parou?</div></div><span class="m mudo" style="font-size:12px">'+hora(t,true)+'</span></div><div class="g2">'+tp("A")+tp("B")+'</div><p class="fo-r r">Outra parada</p><div class="g2">'+Object.keys(MOT).map(k=>'<button type="button" class="op ch ch-s'+(k==="falta"?" gr":"")+(k==="outro"?" w":"")+'" data-pm="'+k+'">'+MOT[k]+"</button>").join("")+"</div>"+canc);
+  }
+  function folhaNome(t,id,at){
+    held=at;
+    const X=T[t];
+    const tipos=id?["P","T","U","D"]:["T"];
+    abre('<div class="fo-h"><div><small class="r mudo">'+X.sig+'</small><div class="fo-t d" style="color:'+X.cor+'">'+rot(id)+'</div></div><span class="m mudo" style="font-size:12px">'+hora(at,true)+'</span></div><div class="g3">'+[1,2,3].map(v=>'<button type="button" class="op v d ch ch-s" style="--cor:'+X.cor+'" data-fv="'+v+'" data-ft="'+t+'" data-fi="'+(id||"")+'">+'+v+"</button>").join("")+'</div><p class="fo-r r">Sem ponto ou falta</p><div class="g2"><button type="button" class="op w ch ch-s" data-fl="1" data-ft="'+t+'" data-fi="'+(id||"")+'">Lance sem ponto (toco, roubo, assistência…)</button>'+tipos.map(f=>'<button type="button" class="op ch ch-s'+(f==="P"?"":" gr")+'" data-ff="'+f+'" data-ft="'+t+'" data-fi="'+(id||"")+'">Falta '+NOMES[f]+"</button>").join("")+"</div>"+canc);
+  }
+  function folhaQuem(t,at){
+    held=at;
+    abre('<div class="fo-h"><div><small class="r mudo">Horário guardado</small><div class="fo-t d">Quem foi?</div></div><span class="m mudo" style="font-size:12px">'+hora(at,true)+'</span></div><div class="g2">'+T[t].j.map(j=>'<button type="button" class="op ch ch-s" data-qm="'+j[0]+'" data-ft="'+t+'">#'+j[1]+" "+j[2]+"</button>").join("")+'<button type="button" class="op ch ch-s" data-qm="" data-ft="'+t+'">Sem jogador</button></div>'+canc);
+  }
+
+  /* ---- tarefas */
+  function atual(){return S.feitas.findIndex(x=>!x)}
+  function missoes(){
+    const v=vivos(),F=S.feitas;
+    if(v.some(e=>e.k==="ponto"&&e.id==="A7"&&e.v===2))F[0]=true;
+    if(v.some(e=>e.k==="falta"&&e.id==="A4"))F[1]=true;
+    if(v.some(e=>e.k==="ponto"&&e.id==="B8"&&e.v===3))F[2]=true;
+    if(v.some(e=>e.k==="pausa"&&e.mot==="tempo"&&e.t==="A"))F[3]=true;
+    const a=atual();
+    $("#mis").innerHTML=MISSOES.map((m,i)=>'<li class="'+(F[i]?"ok":i===a?"ag":"")+'"><i>'+(F[i]?"✓":i+1)+"</i><span>"+m.txt+"</span></li>").join("");
+    $("#misF").textContent=a<0?"Pronto. É assim que o jogo é marcado.":"";
+    alvo();
+  }
+  function alvo(){
+    const a=$("#alvo"),i=atual();
+    let el=null;
+    if(!fo.hidden){
+      if(i===3)el=$('[data-pm="tempo"][data-pt="A"]',fo);
+    }else if(i===0)el=$('[data-p="A7"][data-v="2"]');
+    else if(i===1)el=$('[data-f="A4"]');
+    else if(i===2)el=S.t==="B"?$('[data-p="B8"][data-v="3"]'):$('[data-tab="B"]');
+    else if(i===3)el=$("#parar");
+    else if(i===4&&S.pausa&&S.pausa.apitou)el=$("#retomar");
+    if(i===0&&S.t!=="A")el=$('[data-tab="A"]');
+    if(i===1&&S.t!=="A")el=$('[data-tab="A"]');
+    if(!el){a.hidden=true;return}
+    const R=$("#tela").getBoundingClientRect(),r=el.getBoundingClientRect();
+    a.style.left=(r.left-R.left+r.width/2)+"px";a.style.top=(r.top-R.top+r.height/2)+"px";a.hidden=false;
+  }
+
+  /* ---- toques */
+  $("#tela").addEventListener("click",ev=>{
+    const b=ev.target.closest("button");
+    if(ev.target===fu){fecha();return}
+    if(!b)return;
+    const d=b.dataset,at=Date.now();
+    if(d.tab){S.t=d.tab;tudo(true);return}
+    if(d.p){lance("ponto",S.t,d.p,+d.v,null,at);return}
+    if(d.f){lance("falta",S.t,d.f,0,"P",at);return}
+    if(d.nome){folhaNome(S.t,d.nome,at);return}
+    if(b.id==="marcar"){folhaQuem(S.t,at);return}
+    if(b.id==="desf"){const v=vivos().filter(e=>["ponto","lance","falta"].includes(e.k)).pop();if(v){desfaz(v);toast("Desfeito: "+v.txt)}return}
+    if(b.id==="parar"){$("#toast").hidden=true;folhaParar(at);return}
+    if(b.id==="retomar"){
+      const p=S.pausa,ms=msP(),lim=p.lim*1000;
+      S.pausa=null;
+      if(atual()===4)S.feitas[4]=true;
+      tudo();missoes();
+      toast("Jogo retomado · "+p.nome+" durou "+dur(ms)+(ms>lim?" (+"+dur(ms-lim)+" acima)":""));
+      return;
+    }
+    if(d.canc){fecha();return}
+    if(d.pm){
+      const t=d.pt||null;
+      const nome=d.pm==="tempo"?"Tempo "+T[t].sig:MOT[d.pm];
+      const e={n:++seq,k:"pausa",mot:d.pm,t,at:held,txt:nome};
+      S.ev.push(e);
+      S.pausa={t:held,nome,lim:LIM[d.pm]};
+      fecha();logar(e);tudo();missoes();
+      toast("Jogo parado · "+nome+" · limite "+dur(LIM[d.pm]*1000),()=>{S.pausa=null;desfaz(e);missoes()});
+      return;
+    }
+    const id=d.fi||null;
+    if(d.fv){fecha();lance("ponto",d.ft,id,+d.fv,null,held);return}
+    if(d.fl){fecha();lance("lance",d.ft,id,0,null,held);return}
+    if(d.ff){fecha();lance("falta",d.ft,id,0,d.ff,held);return}
+    if(d.qm!==undefined){folhaNome(d.ft,d.qm||null,held);return}
+  });
+
+  function comeca(){
+    S=novo();seq=0;fecha();$("#toast").hidden=true;
+    $("#log").innerHTML='<li class="log-vz" style="display:block">Cada toque aparece aqui com a hora exata.</li>';
+    $("#cClip").textContent="0";$("#cOut").textContent="0";
+    tudo();missoes();
+  }
+  $("#simRe").onclick=comeca;
+  addEventListener("resize",alvo);
+  comeca();
+  setInterval(()=>{if(S.pausa)tiqueP();else $("#tHora").textContent=hora(Date.now())},100);
+})();
+
+/* -------- passo 5: encaixe dos relógios */
+(function(){
+  const box=$("#diag"),S=$("#trkS"),fioBox=$("#pistas");
+  let tok=0;
+  const liga=n=>$$("#calc li").forEach(li=>li.classList.toggle("on",+li.dataset.c===n));
+  const roda=async()=>{
+    if(RM||!M.animate)return;
+    const eu=++tok,vale=()=>eu===tok;
+    box.classList.add("tocando");liga(1);
+    S.style.transform="translateX(11%)";$("#corte").style.opacity=0;$("#pV").style.opacity=0;
+    $("#zBar").style.transformOrigin="left";$("#zBar").style.transform="scaleX(0)";
+    await anim($$("#trkV .pino.qr, #trkS .pino.qr"),{scaleY:[1,1.7,1]},{duration:.6,repeat:1});
+    await espera(500);if(!vale())return;
+    liga(2);
+    await anim(S,{x:["11%","0%"]},{type:"spring",stiffness:90,damping:14});
+    S.style.transform="";
+    await espera(250);if(!vale())return;
+    anim($("#pV"),{opacity:[0,1],scaleY:[.2,1]},MOLA);
+    await espera(700);if(!vale())return;
+    liga(3);
+    anim($("#corte"),{opacity:[0,1],scaleY:[.2,1]},MOLA);
+    await anim($("#zBar"),{scaleX:[0,1]},{duration:.75,ease:[.2,.8,.2,1]});
+    await espera(700);if(!vale())return;
+    box.classList.remove("tocando");
+    $("#zBar").style.transform="";
+  };
+  let feito=false;
+  vendo(box,()=>{if(!feito){feito=true;roda()}},{amount:.5});
+  $("#diagRe").onclick=roda;
+})();
+
+/* -------- detalhes */
+$$(".cbox").forEach(el=>{
+  el.innerHTML=el.dataset.c.split(" ").map(x=>{const [v,q]=x.split(":");return '<i style="background:var(--q'+q+')">'+v+"</i>"}).join("");
+  vendo(el,()=>{anim($$("i",el),{scale:[.2,1],opacity:[0,1]},Object.assign({delay:M.stagger?M.stagger(.06):0},MOLA))});
+});
+$("#copiar").onclick=async function(){
+  const b=this,txt=$("#cmd").textContent;
+  try{await navigator.clipboard.writeText(txt);b.textContent="Copiado"}
+  catch(e){const r=document.createRange();r.selectNodeContents($("#cmd"));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent="Selecionado"}
+  setTimeout(()=>{b.textContent="Copiar"},1800);
+};
+})();
+</script>

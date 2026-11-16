@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+highlights/
+servidor_dados/
+videos/
+*.mp4
+*.mov
+.firebase/
+*.log
+web/node_modules/
+web/dist/
+web/dev-dist/
+.claude/settings.local.json
+# chave e certificados do servidor ficam só neste PC
+servidor_dados/

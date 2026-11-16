@@ -1,0 +1,230 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Entendendo a Súmula Digital</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: uma coluna que se lê de cima para baixo, como uma conversa. Mesma arena escura do app. */
+:root{
+  color-scheme:dark;
+  --chao:#05070f; --placa:#0c1226; --placa2:#161f3d; --linha:rgba(150,170,255,.2);
+  --giz:#f2f4ff; --giz2:#b4bedc;
+  --pessoa:#ffd400; --auto:#00d8ff; --ok:#c8ff1a; --agora:#ff6a00; --erro:#ff3b5c;
+  --tinta:#05070f;
+  --titulo:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --texto:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{background:var(--chao);color:var(--giz);font:400 16px/1.55 var(--texto)}
+.pagina{max-width:860px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:56px}
+header{display:grid;gap:12px}
+.selo{font:700 15px/1 var(--titulo);letter-spacing:.14em;text-transform:uppercase;color:var(--agora)}
+h1,h2{font-family:var(--titulo);font-style:italic;font-weight:800;text-transform:uppercase;line-height:1;margin:0;text-wrap:balance}
+h1{font-size:clamp(44px,9vw,76px)}
+h2{font-size:clamp(30px,5.5vw,42px)}
+p{margin:0;max-width:65ch}
+.grande{font-size:clamp(18px,2.6vw,21px);line-height:1.45}
+.fraco{color:var(--giz2)}
+section{display:grid;gap:18px}
+.ch{--c:14px;clip-path:polygon(var(--c) 0,100% 0,100% calc(100% - var(--c)),calc(100% - var(--c)) 100%,0 100%,0 var(--c))}
+.ic{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* Legenda e fluxo */
+.legenda{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:14px;color:var(--giz2)}
+.legenda span{display:inline-flex;align-items:center;gap:8px}
+.legenda i{width:12px;height:12px;display:block}
+.fluxo{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;list-style:none;margin:0;padding:0}
+.passo{background:var(--placa);padding:16px 12px 14px;display:grid;gap:10px;align-content:start;min-width:0;border-top:4px solid var(--cor)}
+.passo{--cor:var(--auto)}
+.passo.gente{--cor:var(--pessoa)}
+.passo .ic{color:var(--cor)}
+.passo b{font:700 21px/1.05 var(--titulo)}
+.passo small{font-size:13.5px;line-height:1.4;color:var(--giz2)}
+.quem{font:700 13px/1 var(--titulo);letter-spacing:.1em;text-transform:uppercase;color:var(--cor)}
+
+/* Peças */
+.pecas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.peca{background:var(--placa);padding:18px 16px;display:grid;gap:8px;align-content:start;min-width:0}
+.peca .ic{color:var(--giz)}
+.peca b{font:700 23px/1.05 var(--titulo)}
+.peca small{font-size:14.5px;line-height:1.45;color:var(--giz2)}
+.estado{font:700 13px/1 var(--titulo);letter-spacing:.1em;text-transform:uppercase;color:var(--ok)}
+
+/* A ponte */
+.ponte{background:var(--placa);padding:20px 18px;display:grid;gap:14px}
+.ponte h3{margin:0;font:700 15px/1 var(--titulo);letter-spacing:.14em;text-transform:uppercase;color:var(--cor)}
+.ponte.sem{--cor:var(--erro)} .ponte.com{--cor:var(--ok)}
+.trilho{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px}
+.ponta{display:grid;justify-items:center;gap:5px;font-size:13px;line-height:1.2;color:var(--giz2);text-align:center;width:76px}
+.ponta .ic{width:42px;height:42px;color:var(--giz)}
+.fio{position:relative;height:26px;display:flex;align-items:center;justify-content:center}
+.fio::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:3px dashed var(--cor);opacity:.75}
+.fio em{position:relative;background:var(--placa);padding:0 10px;font:700 17px/1.1 var(--titulo);font-style:normal;color:var(--cor);display:inline-flex;align-items:center;gap:6px;text-align:center}
+.fio em svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.bola{position:absolute;top:50%;left:0;width:11px;height:11px;margin-top:-5.5px;border-radius:50%;background:var(--ok);animation:corre 2.6s linear infinite}
+@keyframes corre{from{left:0}to{left:calc(100% - 11px)}}
+
+/* Tailscale */
+.tail{background:var(--placa2);padding:24px 20px;display:grid;gap:18px}
+.fatos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 26px}
+.fato{display:grid;gap:4px;min-width:0}
+.fato b{font:700 21px/1.1 var(--titulo);color:var(--agora)}
+
+/* Linha do tempo */
+.tempo{list-style:none;margin:0;padding:0;display:grid}
+.tempo li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;padding-bottom:18px;position:relative}
+.tempo li::before{content:"";position:absolute;left:13px;top:26px;bottom:0;border-left:2px solid var(--linha)}
+.tempo li:last-child{padding-bottom:0}
+.tempo li:last-child::before{display:none}
+.ponto{width:28px;height:28px;display:grid;place-items:center;border:2px solid var(--linha);background:var(--chao);color:var(--tinta)}
+.ponto svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.feito .ponto{background:var(--ok);border-color:var(--ok)}
+.aqui .ponto{background:var(--agora);border-color:var(--agora)}
+.item{display:grid;gap:2px;min-width:0}
+.item b{font:700 22px/1.15 var(--titulo)}
+.aqui .item b{color:var(--agora)}
+.item small{font-size:14.5px;line-height:1.45;color:var(--giz2)}
+.marca{font:700 13px/1 var(--titulo);letter-spacing:.1em;text-transform:uppercase;color:var(--agora)}
+
+/* Outros caminhos */
+.caminhos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.caminho{background:var(--placa);padding:18px 16px;display:grid;gap:6px;align-content:start;min-width:0}
+.caminho b{font:700 23px/1.05 var(--titulo)}
+.caminho small{font-size:14.5px;line-height:1.45;color:var(--giz2)}
+
+/* Dicionário */
+.dic{margin:0;display:grid;border-top:1px solid var(--linha)}
+.dic div{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr);gap:4px 20px;padding:13px 0;border-bottom:1px solid var(--linha)}
+.dic dt{font:700 20px/1.2 var(--titulo)}
+.dic dd{margin:0;font-size:15px;color:var(--giz2)}
+
+@media (max-width:700px){
+  .fluxo{grid-template-columns:minmax(0,1fr)}
+  .passo{grid-template-columns:34px minmax(0,1fr);column-gap:14px;padding:14px 14px}
+  .passo .ic{grid-row:span 3}
+  .passo{gap:4px 14px}
+  .pecas,.fatos,.caminhos{grid-template-columns:minmax(0,1fr)}
+  .dic div{grid-template-columns:minmax(0,1fr)}
+  .ponta{width:58px;font-size:12px}
+  .ponta .ic{width:36px;height:36px}
+  .fio{height:auto;padding-bottom:14px}
+  .fio::before{top:auto;bottom:2px}
+  .fio em{font-size:15px;padding:0;background:none}
+  .bola{top:auto;bottom:-2px;margin-top:0}
+}
+@media (prefers-reduced-motion:reduce){.bola{animation:none;left:50%}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="celular" viewBox="0 0 24 24"><rect x="6.5" y="2" width="11" height="20" rx="2"/><path d="M11 18.5h2"/></symbol>
+  <symbol id="qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M21 14v.01M14 21h3M21 18v3"/></symbol>
+  <symbol id="toque" viewBox="0 0 24 24"><path d="M9 11V5a2 2 0 0 1 4 0v6l4.5 1a2.5 2.5 0 0 1 2 2.9L19 19a3 3 0 0 1-3 2.5h-3a4 4 0 0 1-3-1.4L5.5 15a1.6 1.6 0 0 1 2.3-2.2L9 14"/></symbol>
+  <symbol id="video" viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="2"/><path d="m15.5 10.5 6-3.5v10l-6-3.5"/></symbol>
+  <symbol id="tesoura" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/></symbol>
+  <symbol id="sino" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></symbol>
+  <symbol id="pc" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="1.5"/><path d="M9 21h6M12 17v4"/></symbol>
+  <symbol id="cadeado" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="certo" viewBox="0 0 24 24"><path d="m5 13 4.5 4.5L19 7"/></symbol>
+</svg>
+
+<main class="pagina">
+
+  <header>
+    <div class="selo">Súmula Digital · basquete</div>
+    <h1>O que a gente está fazendo</h1>
+    <p class="grande">O mesário marca o jogo no celular e, no fim, o computador entrega sozinho um clipe de cada cesta. A ideia é só essa. Todo o resto existe para isso funcionar.</p>
+  </header>
+
+  <section>
+    <h2>Como vai ser no jogo</h2>
+    <div class="legenda">
+      <span><i style="background:var(--pessoa)"></i>Uma pessoa faz</span>
+      <span><i style="background:var(--auto)"></i>Acontece sozinho</span>
+    </div>
+    <ol class="fluxo">
+      <li class="passo gente ch"><svg class="ic"><use href="#qr"/></svg><span class="quem">Mesário</span><b>Mostra o QR para a câmera</b><small>Uma vez, com a câmera gravando.</small></li>
+      <li class="passo gente ch"><svg class="ic"><use href="#toque"/></svg><span class="quem">Mesário</span><b>Marca as cestas e toca em Encerrar</b><small>A súmula vai sozinha para o computador.</small></li>
+      <li class="passo gente ch"><svg class="ic"><use href="#video"/></svg><span class="quem">Alguém</span><b>Manda o vídeo para o computador</b><small>Por cabo ou Google Drive.</small></li>
+      <li class="passo ch"><svg class="ic"><use href="#tesoura"/></svg><span class="quem">Computador</span><b>Acha o jogo e corta os lances</b><small>Pelo horário do vídeo e pelo QR.</small></li>
+      <li class="passo ch"><svg class="ic"><use href="#sino"/></svg><span class="quem">Celular</span><b>Avisa que terminou</b><small>"Cortes prontos: Engenharia contra Direito."</small></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>As três peças</h2>
+    <div class="pecas">
+      <div class="peca ch"><svg class="ic"><use href="#celular"/></svg><b>Celular do mesário</b><small>Tem o app da súmula. Funciona mesmo sem internet.</small><span class="estado">App pronto</span></div>
+      <div class="peca ch"><svg class="ic"><use href="#video"/></svg><b>Celular da câmera</b><small>Só filma, no tripé. Não precisa instalar nada.</small><span class="estado">Nada a fazer</span></div>
+      <div class="peca ch"><svg class="ic"><use href="#pc"/></svg><b>Seu computador</b><small>Recebe a súmula, corta o vídeo e manda o aviso. Precisa estar ligado com o programa aberto.</small><span class="estado">Programa pronto</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que falta: uma ponte</h2>
+    <p>Lá no ginásio, o celular não tem como encontrar o seu computador, porque um computador de casa não tem endereço na internet. Sem ponte, a súmula fica presa no celular.</p>
+    <div class="ponte sem ch">
+      <h3>Hoje</h3>
+      <div class="trilho">
+        <div class="ponta"><svg class="ic"><use href="#celular"/></svg>Ginásio</div>
+        <div class="fio"><em>Não sabe para onde mandar</em></div>
+        <div class="ponta"><svg class="ic"><use href="#pc"/></svg>Sua casa</div>
+      </div>
+    </div>
+    <div class="ponte com ch">
+      <h3>Com a ponte</h3>
+      <div class="trilho">
+        <div class="ponta"><svg class="ic"><use href="#celular"/></svg>Ginásio</div>
+        <div class="fio"><span class="bola"></span><em><svg><use href="#cadeado"/></svg>Endereço fixo do computador</em></div>
+        <div class="ponta"><svg class="ic"><use href="#pc"/></svg>Sua casa</div>
+      </div>
+    </div>
+    <p class="fraco">O endereço precisa ter o cadeado do navegador (HTTPS). O celular exige isso para instalar o app e receber aviso.</p>
+  </section>
+
+  <section class="tail ch">
+    <h2>E esse tal de Tailscale?</h2>
+    <p class="grande">É só o programa que cria a ponte. Ele dá ao seu computador o endereço fixo com cadeado.</p>
+    <div class="fatos">
+      <div class="fato"><b>Por que apareceu</b><p>Eu perguntei se podia instalar e você disse sim, mas eu não tinha explicado direito para que servia. Essa falha foi minha.</p></div>
+      <div class="fato"><b>O que ele faz agora</b><p>Nada. Está sem login e nenhum endereço foi ligado. Seu computador continua fechado para a internet.</p></div>
+      <div class="fato"><b>Depois de ligado</b><p>A tela do app fica aberta para quem tiver o endereço. Súmulas e clipes só abrem com o seu código de acesso.</p></div>
+      <div class="fato"><b>Se não quiser</b><p>Desinstale em Configurações do Windows, Aplicativos. Não estraga nada do que já foi feito.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Onde a gente parou</h2>
+    <ol class="tempo">
+      <li class="feito"><span class="ponto"><svg><use href="#certo"/></svg></span><div class="item"><b>App da súmula</b><small>Marca cestas, faltas e paradas, e funciona sem internet.</small></div></li>
+      <li class="feito"><span class="ponto"><svg><use href="#certo"/></svg></span><div class="item"><b>Cortes automáticos</b><small>Testado neste computador, com vídeo simulado.</small></div></li>
+      <li class="feito"><span class="ponto"><svg><use href="#certo"/></svg></span><div class="item"><b>Tailscale instalado</b><small>Instalado, mas ainda desligado.</small></div></li>
+      <li class="aqui"><span class="ponto"></span><div class="item"><span class="marca">Estamos aqui · só você pode fazer</span><b>Decidir se usa, e entrar na conta</b><small>O login é seu. Eu não posso criar conta nem digitar senha.</small></div></li>
+      <li><span class="ponto"></span><div class="item"><b>Ligar o endereço</b><small>Eu faço. Você aprova com um clique.</small></div></li>
+      <li><span class="ponto"></span><div class="item"><b>Instalar o app no celular</b><small>Você abre um link que eu te passo.</small></div></li>
+      <li><span class="ponto"></span><div class="item"><b>Fazer um jogo-teste de verdade</b><small>Ainda não foi testado num celular real, nem com um vídeo real de jogo.</small></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Se preferir outro caminho</h2>
+    <div class="caminhos">
+      <div class="caminho ch"><b>Só no Wi-Fi</b><small>Celular e computador na mesma rede. Mais simples, mas o app não instala, não avisa e os cortes não saem sozinhos.</small></div>
+      <div class="caminho ch"><b>Servidor pago na internet</b><small>O computador pode ficar desligado. Tem custo mensal e eu precisaria adaptar o programa.</small></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Dicionário rápido</h2>
+    <dl class="dic">
+      <div><dt>QR na tela</dt><dd>Câmera e celular têm relógios diferentes. A câmera filma o QR uma vez e o programa descobre a diferença.</dd></div>
+      <div><dt>servidor.py</dt><dd>O nome do programa que fica aberto no computador.</dd></div>
+      <div><dt>Pasta de vídeos</dt><dd>O lugar do computador onde o vídeo precisa chegar para o programa encontrar.</dd></div>
+      <div><dt>Código de acesso</dt><dd>A senha do seu computador, porque os clipes mostram atletas. Já vem no link de instalação.</dd></div>
+      <div><dt>PWA</dt><dd>App que entra na tela inicial do celular sem passar pela loja.</dd></div>
+      <div><dt>Netlify e APK</dt><dd>Apareceram no caminho e não vamos usar. Pode esquecer.</dd></div>
+    </dl>
+  </section>
+
+</main>
