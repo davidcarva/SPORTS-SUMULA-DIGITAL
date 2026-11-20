@@ -13,3 +13,6 @@ web/dev-dist/
 .claude/settings.local.json
 # chave e certificados do servidor ficam só neste PC
 servidor_dados/
+
+# chaves de conta de serviço do Firebase: nunca vão para o git
+*-firebase-adminsdk-*.json
