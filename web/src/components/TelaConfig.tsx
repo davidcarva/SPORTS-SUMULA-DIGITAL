@@ -7,7 +7,6 @@ import type { TimeId } from "@/lib/tipos";
 import { pedirAbertura } from "@/lib/abertura";
 import { textoSobre } from "@/lib/cor";
 import { Botao, Cartao } from "./arena";
-import { BotaoTema } from "./BotaoTema";
 import { Destaque } from "./Destaque";
 import { FundoLados } from "./FundoLados";
 import { QuadraIso, useLinhaDoTempo } from "./QuadraIso";
@@ -150,17 +149,39 @@ function CampoTime({
   );
 }
 
+/** Garante linhas suficientes para o mínimo da modalidade (vôlei: 6), sem apagar o que já foi digitado. */
+const completarLinhas = (t: Time, minimo: number): Time =>
+  t.jogadores.length >= minimo ? t : { ...t, jogadores: [...t.jogadores, ...Array.from({ length: minimo - t.jogadores.length }, () => novaLinha())] };
+
 export function TelaConfig() {
   const [modalidade, setModalidade] = useState<Modalidade>(modalidadeSalva);
   const [nome, setNome] = useState("");
-  const [a, setA] = useState<Time>(() => VAZIO("#2e7dff"));
-  const [b, setB] = useState<Time>(() => VAZIO("#ff6a00"));
+  const [a, setA] = useState<Time>(() => completarLinhas(VAZIO("#2e7dff"), REGRAS[modalidadeSalva()].minJogadores));
+  const [b, setB] = useState<Time>(() => completarLinhas(VAZIO("#ff6a00"), REGRAS[modalidadeSalva()].minJogadores));
   const [erro, setErro] = useState("");
+  const minimo = REGRAS[modalidade].minJogadores;
+
+  const escolherModalidade = (m: Modalidade) => {
+    setModalidade(m);
+    setA((t) => completarLinhas(t, REGRAS[m].minJogadores));
+    setB((t) => completarLinhas(t, REGRAS[m].minJogadores));
+    setErro("");
+  };
 
   const comecar = () => {
     if (!montarJogadores(a.jogadores, "A").length || !montarJogadores(b.jogadores, "B").length) {
       setErro("Cadastre pelo menos um jogador em cada time.");
       return;
+    }
+    for (const [t, sigla] of [[a, "A"], [b, "B"]] as const) {
+      const n = montarJogadores(t.jogadores, sigla).length;
+      if (n < minimo) {
+        setErro(
+          `No ${REGRAS[modalidade].nome.toLowerCase()}, cada time precisa de pelo menos ${minimo} jogadores (os ${minimo} da rotação). ` +
+            `O time ${t.nome.trim() || sigla} tem ${n}.`,
+        );
+        return;
+      }
     }
     for (const [t, sigla] of [[a, "A"], [b, "B"]] as const) {
       const preenchidas = t.jogadores.filter((l) => l.nome.trim() || l.numero);
@@ -204,7 +225,6 @@ export function TelaConfig() {
             </Destaque>
           </h1>
         </div>
-        <BotaoTema />
       </motion.header>
 
       <CartaoInstalar />
@@ -212,7 +232,7 @@ export function TelaConfig() {
       <motion.div variants={{ oculto: { opacity: 0, y: 20 }, visivel: { opacity: 1, y: 0 } }}>
         <Cartao miolo="p-4">
           <span className="mb-2 block font-display-reta text-[11px] text-muted-foreground">Modalidade</span>
-          <EscolhaModalidade valor={modalidade} corA={a.cor} corB={b.cor} onMudar={setModalidade} />
+          <EscolhaModalidade valor={modalidade} corA={a.cor} corB={b.cor} onMudar={escolherModalidade} />
           <p className="mt-2 text-xs text-muted-foreground">{RESUMO[modalidade]}</p>
         </Cartao>
       </motion.div>

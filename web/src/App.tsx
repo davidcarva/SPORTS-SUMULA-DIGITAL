@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { Dialogo, type Pergunta, ToastView, useToast } from "@/components/Avisos";
 import { AvisoAtualizacao } from "@/components/Instalacao";
 import { AberturaQuadra } from "@/components/AberturaQuadra";
-import { BotaoTema } from "@/components/BotaoTema";
 import { FundoLados } from "@/components/FundoLados";
 import { LanceIso } from "@/components/LanceIso";
 import { concluirAbertura, useAbertura } from "@/lib/abertura";
@@ -315,7 +314,6 @@ export default function App() {
           >
             <QrCode className="h-4 w-4" /> Sincronizar
           </motion.button>
-          <BotaoTema />
         </header>
 
         <Placar jogo={jogo} onSync={() => setSync(true)} />

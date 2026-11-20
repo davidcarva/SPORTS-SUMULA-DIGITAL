@@ -52,6 +52,8 @@ export interface Regras {
   rotulosLimites: { intervalo: string; meio: string | null };
   /** Vence quem ganha mais sets (vôlei), e o placar grande mostra o set atual. */
   porSets: boolean;
+  /** Jogadores cadastrados por time, no mínimo, para começar o jogo (vôlei: os 6 da rotação). */
+  minJogadores: number;
 }
 
 const ord = (n: number) => `${n}º`;
@@ -89,6 +91,7 @@ const BASQUETE: Regras = {
   limites: { tempo: 60, intervalo: 120, meio: 600, outras: 180 },
   rotulosLimites: { intervalo: "Intervalo entre quartos (min)", meio: "Intervalo do meio (min)" },
   porSets: false,
+  minJogadores: 1,
 };
 
 /** Futsal (regra FIFA): 2 tempos, 5 faltas acumuladas por tempo, 1 pedido de tempo por tempo. */
@@ -119,6 +122,7 @@ const FUTSAL: Regras = {
   limites: { tempo: 60, intervalo: 120, meio: 600, outras: 180 },
   rotulosLimites: { intervalo: "Intervalo da prorrogação (min)", meio: "Intervalo do meio (min)" },
   porSets: false,
+  minJogadores: 1,
 };
 
 /** Vôlei: sets sem relógio, 2 pedidos de tempo por set, só cartões. */
@@ -148,6 +152,7 @@ const VOLEI: Regras = {
   limites: { tempo: 30, intervalo: 180, meio: 180, outras: 180 },
   rotulosLimites: { intervalo: "Intervalo entre sets (min)", meio: null },
   porSets: true,
+  minJogadores: 6,
 };
 
 export const REGRAS: Record<Modalidade, Regras> = { basquete: BASQUETE, futsal: FUTSAL, volei: VOLEI };

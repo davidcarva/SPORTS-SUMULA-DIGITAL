@@ -9,12 +9,9 @@ export const STORY_H = 1920;
 
 const DISPLAY = '"Barlow Condensed", "Arial Narrow", sans-serif';
 const TEXTO = '"Inter Variable", Inter, system-ui, sans-serif';
-/** Cores do story: seguem o tema do app (off-white ou grafite). */
+/** Cores do story: as mesmas do app (grafite). */
 function paleta() {
-  const escuro = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
-  return escuro
-    ? { papel: "#0b0b0b", cartao: "#141414", tinta: "#f2f0ea", fraco: "#9c988f", linha: "rgba(242,240,234,0.14)", grade: "rgba(242,240,234,0.05)", forte: 0.42, sombra: "rgba(0,0,0,0.6)" }
-    : { papel: "#f2f0ea", cartao: "#faf9f5", tinta: "#161616", fraco: "#6b675e", linha: "rgba(22,22,22,0.14)", grade: "rgba(22,22,22,0.05)", forte: 0.32, sombra: "rgba(0,0,0,0.16)" };
+  return { papel: "#0b0b0b", cartao: "#141414", tinta: "#f2f0ea", fraco: "#9c988f", linha: "rgba(242,240,234,0.14)", grade: "rgba(242,240,234,0.05)", forte: 0.42, sombra: "rgba(0,0,0,0.6)" };
 }
 
 /** Cor do time com transparência (cores dos times são sempre #rrggbb). */

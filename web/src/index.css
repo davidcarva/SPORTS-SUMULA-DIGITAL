@@ -236,65 +236,12 @@
     }
 }
 /* ================================================================
-   Tema: papel off-white (claro) ou grafite (escuro). A única cor forte
-   do app é a dos times: --time-a pinta o lado esquerdo, --time-b o direito.
-   O <html> ganha a classe "dark" quando o tema é grafite (lib/tema.ts).
+   Tema grafite, o único do app (o <html> já vem com a classe "dark").
+   A única cor forte é a dos times: --time-a pinta o lado esquerdo, --time-b o direito.
    ================================================================ */
 :root {
-    color-scheme: light;
     --time-a: #2e7dff;
     --time-b: #ff6a00;
-
-    --arena: #f2f0ea;
-    --arena-2: #e9e6de;
-    --background: var(--arena);
-    --foreground: #161616;
-    --card: #faf9f5;
-    --card-foreground: #161616;
-    --popover: #ffffff;
-    --popover-foreground: #161616;
-    --primary: #161616;
-    --primary-foreground: #f2f0ea;
-    --secondary: #e6e3da;
-    --secondary-foreground: #161616;
-    --muted: #ebe8e0;
-    --muted-foreground: #6b675e;
-    --accent: #dcd8cd;
-    --accent-foreground: #161616;
-    --destructive: #d9213a;
-    --border: rgb(22 22 22 / 0.11);
-    --input: rgb(22 22 22 / 0.16);
-    --ring: #161616;
-    --linha: rgb(22 22 22 / 0.34);
-    --tinta-forte: 30%;
-    --tinta-fraca: 9%;
-    --tinta-ativa: 7%;
-
-    /* "ok" (câmera sincronizada, pronto) e o texto que vai em cima dele */
-    --ok: #15803d;
-    --pausa-texto: #8a6a00;
-    --sobre-ok: #ffffff;
-
-    /* Nomes antigos: as cores "neon" agora são as dos times e a tinta. */
-    --neon-volt: var(--ok);
-    --neon-orange: var(--time-a);
-    --neon-pink: var(--time-b);
-    --neon-violet: var(--time-b);
-    --neon-cyan: var(--foreground);
-
-    --chart-background: transparent;
-    --chart-foreground: #6b675e;
-    --chart-foreground-muted: #6b675e;
-    --chart-label: #4a463f;
-    --chart-grid: rgb(22 22 22 / 0.08);
-    --chart-crosshair: rgb(22 22 22 / 0.45);
-    --chart-indicator-color: #161616;
-    --chart-indicator-secondary-color: var(--arena);
-    --chart-tooltip-background: #ffffff;
-    --chart-tooltip-foreground: #161616;
-    --chart-tooltip-muted: #6b675e;
-    --chart-marker-badge-background: #161616;
-    --chart-marker-badge-foreground: #f2f0ea;
 }
 
 .dark {
