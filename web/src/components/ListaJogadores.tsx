@@ -21,6 +21,19 @@ export interface LinhaJogador {
 let contador = 0;
 export const novaLinha = (numero = "", nome = ""): LinhaJogador => ({ chave: `l${++contador}`, numero, nome });
 
+/** O menor número de 1 a 99 que ainda não está no time: cada jogador novo já chega numerado. */
+export function proximoNumero(linhas: LinhaJogador[]): string {
+  const usados = new Set(linhas.map((l) => l.numero));
+  return NUMEROS.find((n) => !usados.has(n)) ?? "";
+}
+
+/** Acrescenta `quantas` linhas, cada uma com o próximo número livre (1, 2, 3…). */
+export function comNumeros(linhas: LinhaJogador[], quantas: number): LinhaJogador[] {
+  const todas = [...linhas];
+  for (let i = 0; i < quantas; i++) todas.push(novaLinha(proximoNumero(todas)));
+  return todas;
+}
+
 /** Números repetidos dentro do mesmo time. */
 export function repetidos(numeros: string[]): Set<string> {
   const vistos = new Set<string>();
@@ -190,9 +203,9 @@ export function ListaJogadores({
       <button
         type="button"
         onClick={() => {
-          const nova = novaLinha();
-          onMudar([...linhas, nova]);
-          setAberto(nova.chave);
+          // Já chega com o próximo número livre; a grade fica fechada (dá para trocar pela seta).
+          onMudar(comNumeros(linhas, 1));
+          setAberto(null);
         }}
         className="chanfro chanfro-sm mt-2 flex h-11 items-center justify-center gap-2 font-display-reta text-sm ring-1 ring-inset ring-dashed ring-border"
       >

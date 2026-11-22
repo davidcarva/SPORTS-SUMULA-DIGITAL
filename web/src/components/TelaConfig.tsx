@@ -12,13 +12,14 @@ import { FundoLados } from "./FundoLados";
 import { QuadraIso, useLinhaDoTempo } from "./QuadraIso";
 import { IconeBasquete } from "./IconeBasquete";
 import { CartaoInstalar } from "./Instalacao";
-import { type LinhaJogador, ListaJogadores, novaLinha, repetidos } from "./ListaJogadores";
+import { comNumeros, type LinhaJogador, ListaJogadores, novaLinha, repetidos } from "./ListaJogadores";
 import { CoresDeUmaImagem, SeletorCor } from "./SeletorCor";
 
 /** O time na tela de cadastro: as linhas guardam uma chave para o React não embaralhar os campos. */
 type Time = Omit<ConfigTime, "jogadores"> & { jogadores: LinhaJogador[] };
 
-const VAZIO = (cor: string): Time => ({ nome: "", sigla: "", cor, jogadores: Array.from({ length: LINHAS_INICIAIS }, () => novaLinha()) });
+/** Time em branco: as linhas já vêm numeradas 1, 2, 3… (num baba, dá para começar sem digitar nada). */
+const VAZIO = (cor: string): Time => ({ nome: "", sigla: "", cor, jogadores: comNumeros([], LINHAS_INICIAIS) });
 
 const ICONES: Record<Modalidade, React.ComponentType<{ className?: string }>> = {
   basquete: IconeBasquete,
@@ -151,7 +152,7 @@ function CampoTime({
 
 /** Garante linhas suficientes para o mínimo da modalidade (vôlei: 6), sem apagar o que já foi digitado. */
 const completarLinhas = (t: Time, minimo: number): Time =>
-  t.jogadores.length >= minimo ? t : { ...t, jogadores: [...t.jogadores, ...Array.from({ length: minimo - t.jogadores.length }, () => novaLinha())] };
+  t.jogadores.length >= minimo ? t : { ...t, jogadores: comNumeros(t.jogadores, minimo - t.jogadores.length) };
 
 export function TelaConfig() {
   const [modalidade, setModalidade] = useState<Modalidade>(modalidadeSalva);
