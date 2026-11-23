@@ -6,7 +6,7 @@ import type { Jogo } from "./tipos";
  * celular, e o vídeo vai para a mesma pasta. O PC lê os dois de lá.
  *
  * O arquivo sai como .txt porque o Chrome do Android recusa compartilhar .json. O conteúdo é o
- * mesmo JSON, e o PC reconhece pelo nome (sumula_…).
+ * mesmo JSON. O PC reconhece pelo nome (sumula_…) ou, se o Drive trocar o nome, pelo conteúdo.
  */
 
 const CHAVE = "sumula-digital:enviada:";
@@ -50,7 +50,9 @@ export async function mandarSumula(jogo: Jogo): Promise<ResultadoEnvio> {
   const arquivo = new File([conteudo(jogo)], nomeArquivo(jogo, "txt"), { type: "text/plain" });
   if (navigator.canShare?.({ files: [arquivo] })) {
     try {
-      await navigator.share({ files: [arquivo], title: jogo.jogo.nome });
+      // O Drive do Android usa o título como nome do arquivo salvo: com o nome do jogo, a súmula
+      // chegava como "Time 1 x Time 2", sem o "sumula_" e sem o .txt.
+      await navigator.share({ files: [arquivo], title: arquivo.name });
       lembrar(jogo, "enviada");
       return "enviada";
     } catch (erro) {

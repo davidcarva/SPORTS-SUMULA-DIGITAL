@@ -82,6 +82,21 @@ class Banco:
             return [e for p in self.pasta.iterdir() if (e := self.ler(p.name))]
 
 
+def parece_sumula(p: Path, tamanho: int) -> bool:
+    """O app salva "sumula_….txt", mas o Drive do Android às vezes troca o nome pelo título do jogo
+    e tira a extensão ("Time 1 x Time 2"). Então vale o conteúdo: arquivo pequeno que começa com "{".
+    Quem confirma que é súmula mesmo é sumula_valida."""
+    if ARQUIVO_SUMULA.fullmatch(p.name):
+        return True
+    if tamanho > LIMITE_CORPO or tamanho < 2 or p.name.lower() == "desktop.ini":
+        return False
+    try:
+        with p.open("rb") as f:
+            return f.read(64).lstrip(b"\xef\xbb\xbf \t\r\n").startswith(b"{")
+    except OSError:
+        return False
+
+
 def sumula_valida(d: object) -> bool:
     if not isinstance(d, dict) or d.get("formato") not in corte.FORMATOS:
         return False
@@ -212,13 +227,16 @@ class Servico:
         """Súmulas salvas na pasta pelo app. Vale a mais recente de cada jogo."""
         mais_nova: dict[str, tuple[float, Path, int, dict]] = {}
         for p in self.na_pasta():
-            if not ARQUIVO_SUMULA.fullmatch(p.name):
+            if p.suffix.lower() in EXTENSOES_VIDEO:
                 continue
-            st = p.stat()
+            try:
+                st = p.stat()
+            except OSError:
+                continue
             lida = self.lidas.get(p)
             if not lida or lida[:2] != (st.st_size, st.st_mtime):
                 try:
-                    dados = json.loads(p.read_text(encoding="utf-8-sig")) if st.st_size <= LIMITE_CORPO else None
+                    dados = json.loads(p.read_text(encoding="utf-8-sig")) if parece_sumula(p, st.st_size) else None
                 except (OSError, ValueError):
                     dados = None  # ainda sendo copiado: lê de novo quando mudar
                 lida = self.lidas[p] = (st.st_size, st.st_mtime, dados if sumula_valida(dados) else None)

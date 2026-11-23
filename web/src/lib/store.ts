@@ -109,10 +109,42 @@ export function lerJogadores(texto: string, time: TimeId): Jogador[] {
   return montarJogadores(lista, time);
 }
 
+const tresLetras = (nome: string) => nome.replace(/\s+/g, "").slice(0, 3).toUpperCase();
+const iniciais = (nome: string) =>
+  nome
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => (/^\d+$/.test(w) ? w : w[0]))
+    .join("")
+    .toUpperCase()
+    .slice(0, 4);
+
+/**
+ * As siglas que o jogo vai usar. Sem sigla digitada, vale o começo do nome (Engenharia → ENG). Se os
+ * dois começos forem iguais ("Time 1" e "Time 2" dariam TIM x TIM), a sigla automática vira as
+ * iniciais com o número (T1 x T2) ou, sem como diferenciar, ganha a letra do time (TIMA x TIMB).
+ */
+export function siglasDosTimes(a: Pick<ConfigTime, "nome" | "sigla">, b: Pick<ConfigTime, "nome" | "sigla">): [string, string] {
+  const digitada = (c: Pick<ConfigTime, "sigla">) => c.sigla.trim().toUpperCase().slice(0, 4);
+  const auto = (c: Pick<ConfigTime, "nome">, id: TimeId) => tresLetras(c.nome) || id;
+  let sa = digitada(a) || auto(a, "A");
+  let sb = digitada(b) || auto(b, "B");
+  if (sa === sb) {
+    const ia = iniciais(a.nome);
+    const ib = iniciais(b.nome);
+    const separa = ia.length >= 2 && ib.length >= 2 && ia !== ib;
+    if (!digitada(a)) sa = separa ? ia : `${sa.slice(0, 3)}A`;
+    if (!digitada(b)) sb = separa ? ib : `${sb.slice(0, 3)}B`;
+  }
+  return [sa, sb];
+}
+
 export function criarJogo(nome: string, a: ConfigTime, b: ConfigTime, modalidade: Modalidade = "basquete"): Jogo {
+  const siglas = siglasDosTimes(a, b);
   const time = (c: ConfigTime, id: TimeId): Time => ({
     nome: c.nome.trim() || `Time ${id}`,
-    sigla: (c.sigla.trim() || c.nome.trim().slice(0, 3) || id).toUpperCase().slice(0, 4),
+    sigla: siglas[id === "A" ? 0 : 1],
     cor: c.cor,
     jogadores: montarJogadores(c.jogadores, id),
   });

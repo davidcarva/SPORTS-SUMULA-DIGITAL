@@ -1,7 +1,7 @@
 import { Clapperboard, Flame, Goal, Volleyball } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
-import { type ConfigTime, criarJogo, montarJogadores } from "@/lib/store";
+import { type ConfigTime, criarJogo, montarJogadores, siglasDosTimes } from "@/lib/store";
 import { type Modalidade, MODALIDADES, REGRAS } from "@/lib/regras";
 import type { TimeId } from "@/lib/tipos";
 import { pedirAbertura } from "@/lib/abertura";
@@ -104,11 +104,14 @@ function CampoTime({
   id,
   valor,
   outra,
+  siglaSugerida,
   onMudar,
 }: {
   id: TimeId;
   valor: Time;
   outra: string;
+  /** A sigla que vale se o campo ficar vazio (já sem repetir a do outro time). */
+  siglaSugerida: string;
   onMudar: (v: Time) => void;
 }) {
   const n = montarJogadores(valor.jogadores, id).length;
@@ -136,7 +139,7 @@ function CampoTime({
             value={valor.sigla}
             maxLength={4}
             onChange={(e) => onMudar({ ...valor, sigla: e.target.value.toUpperCase() })}
-            placeholder={(valor.nome || (id === "A" ? "ENG" : "DIR")).slice(0, 3).toUpperCase()}
+            placeholder={valor.nome.trim() ? siglaSugerida : id === "A" ? "ENG" : "DIR"}
             className="chanfro chanfro-sm w-full min-w-0 bg-secondary px-3 py-2.5 font-display text-lg uppercase outline-none focus:ring-2 focus:ring-ring"
           />
         </label>
@@ -195,6 +198,11 @@ export function TelaConfig() {
         setErro(`Há número repetido no time ${t.nome.trim() || sigla}.`);
         return;
       }
+    }
+    const [sa, sb] = siglasDosTimes(a, b);
+    if (sa === sb) {
+      setErro(`Os dois times estão com a sigla ${sa}. Mude uma delas.`);
+      return;
     }
     if (a.cor === b.cor) {
       setErro("Escolha cores diferentes para os dois times.");
@@ -276,7 +284,7 @@ export function TelaConfig() {
             direita (time B).
           </p>
           <CoresDeUmaImagem
-            siglas={[a.sigla || a.nome.slice(0, 3).toUpperCase() || "A", b.sigla || b.nome.slice(0, 3).toUpperCase() || "B"]}
+            siglas={siglasDosTimes(a, b)}
             cores={[a.cor, b.cor]}
             onMudar={(lado, cor) => (lado === 0 ? setA((v) => ({ ...v, cor })) : setB((v) => ({ ...v, cor })))}
           />
@@ -291,7 +299,13 @@ export function TelaConfig() {
           ] as const
         ).map(([id, v, set]) => (
           <motion.div key={id} className="min-w-0" variants={{ oculto: { opacity: 0, y: 24 }, visivel: { opacity: 1, y: 0 } }}>
-            <CampoTime id={id} valor={v} outra={id === "A" ? b.cor : a.cor} onMudar={set} />
+            <CampoTime
+              id={id}
+              valor={v}
+              outra={id === "A" ? b.cor : a.cor}
+              siglaSugerida={siglasDosTimes(a, b)[id === "A" ? 0 : 1]}
+              onMudar={set}
+            />
           </motion.div>
         ))}
       </div>
