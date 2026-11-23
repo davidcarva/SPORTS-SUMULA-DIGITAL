@@ -8,6 +8,8 @@ import {
   Folder,
   FolderOpen,
   Goal,
+  RectangleHorizontal,
+  RectangleVertical,
   RefreshCw,
   Share2,
   Volleyball,
@@ -268,14 +270,43 @@ function LinhaJogador({ j, cor, modalidade, onAbrir }: { j: JogadorHub; cor: str
   );
 }
 
+/** Vertical (com a tarja, para story/reels) ou horizontal (o vídeo como foi filmado). */
+type Formato = "vertical" | "horizontal";
+const CHAVE_FORMATO = "sumula-digital:hub-formato";
+
+function formatoSalvo(): Formato {
+  try {
+    return localStorage.getItem(CHAVE_FORMATO) === "horizontal" ? "horizontal" : "vertical";
+  } catch {
+    return "vertical";
+  }
+}
+
+const FORMATOS: { f: Formato; rotulo: string; Icone: React.ComponentType<{ className?: string }> }[] = [
+  { f: "vertical", rotulo: "Vertical", Icone: RectangleVertical },
+  { f: "horizontal", rotulo: "Horizontal", Icone: RectangleHorizontal },
+];
+
 function FolhaJogador({ jogo, jogador, inicial, onFechar }: { jogo: JogoHub; jogador: JogadorHub | null; inicial: number; onFechar: () => void }) {
   const [i, setI] = useState(inicial);
   const [aviso, setAviso] = useState("");
+  const [formato, setFormato] = useState<Formato>(formatoSalvo);
   useEffect(() => setI(inicial), [inicial, jogador?.id]);
   const time = jogador ? jogo.times[jogador.time] : null;
   const l = jogador?.lances[i];
-  const id = l?.v || l?.o || null;
   const n = jogador?.lances.length ?? 0;
+  const tem: Record<Formato, boolean> = { vertical: !!l?.v, horizontal: !!l?.o };
+  // Se o formato escolhido ainda não subiu para este lance, mostra o outro em vez de nada.
+  const usado: Formato = tem[formato] || !tem[formato === "vertical" ? "horizontal" : "vertical"] ? formato : formato === "vertical" ? "horizontal" : "vertical";
+  const id = (usado === "vertical" ? l?.v : l?.o) || null;
+  const escolher = (f: Formato) => {
+    setFormato(f);
+    try {
+      localStorage.setItem(CHAVE_FORMATO, f);
+    } catch {
+      /* só não lembra da próxima vez */
+    }
+  };
 
   return (
     <Folha aberta={!!jogador} onFechar={onFechar}>
@@ -298,8 +329,33 @@ function FolhaJogador({ jogo, jogador, inicial, onFechar }: { jogo: JogoHub; jog
             </div>
           </div>
 
-          {/* O vídeo do lance: o vertical com a tarja, pelo player do Drive. */}
-          <div className="relative mx-auto aspect-[9/16] w-full max-w-[min(100%,calc(58vh*9/16))] overflow-hidden bg-black">
+          <div className="grid grid-cols-2 gap-1 bg-secondary p-1 chanfro chanfro-sm" role="radiogroup" aria-label="Formato do vídeo">
+            {FORMATOS.map(({ f, rotulo, Icone }) => {
+              const ativo = usado === f;
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  role="radio"
+                  aria-checked={ativo}
+                  disabled={!tem[f] && (tem.vertical || tem.horizontal)}
+                  onClick={() => escolher(f)}
+                  className={`chanfro chanfro-sm flex h-9 items-center justify-center gap-1.5 font-display-reta text-xs transition-colors disabled:opacity-35 ${
+                    ativo ? "bg-foreground text-background" : "text-muted-foreground"
+                  }`}
+                >
+                  <Icone className="h-4 w-4" /> {rotulo}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* O vídeo do lance pelo player do Drive: vertical com a tarja ou o horizontal como foi filmado. */}
+          <div
+            className={`relative mx-auto w-full overflow-hidden bg-black ${
+              usado === "vertical" ? "aspect-[9/16] max-w-[min(100%,calc(58vh*9/16))]" : "aspect-video"
+            }`}
+          >
             {id ? (
               <iframe
                 key={id}
