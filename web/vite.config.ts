@@ -7,7 +7,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 // https://vite.dev/config/
 export default defineConfig({
   // Caminhos relativos: o build abre em qualquer pasta servida (serve.py, pendrive, GitHub Pages).
-  base: './',
+  // Caminhos absolutos: links como /hub/<jogo> precisam achar /assets a partir de qualquer pasta.
+  base: '/',
   plugins: [
     react(),
     tailwindcss(),
@@ -20,8 +21,8 @@ export default defineConfig({
         short_name: 'Súmula',
         description: 'Súmula de basquete no celular, com os horários que viram os clipes de cada atleta.',
         lang: 'pt-BR',
-        start_url: './',
-        scope: './',
+        start_url: '/',
+        scope: '/',
         display: 'standalone',
         background_color: '#0b0b0b',
         theme_color: '#0b0b0b',
@@ -35,7 +36,7 @@ export default defineConfig({
         // Tudo que o app usa fica guardado, inclusive o gerador de PDF. Fontes de alfabetos que não usamos ficam de fora.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         globIgnores: ['**/*-cyrillic*', '**/*-greek*', '**/*-vietnamese*'],
-        navigateFallback: 'index.html',
+        navigateFallback: '/index.html',
         navigateFallbackDenylist: [/\/(api|clipes)\//],
         importScripts: ['push-sw.js'],
         cleanupOutdatedCaches: true,

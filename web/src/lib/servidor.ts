@@ -18,7 +18,7 @@ export function usaServidor(): boolean {
 
 export async function detectarServidor() {
   try {
-    const r = await fetch("./api/servidor", { cache: "no-store" });
+    const r = await fetch("/api/servidor", { cache: "no-store" });
     if (r.ok && r.headers.get("content-type")?.includes("json")) localStorage.setItem(MODO_LS, "servidor");
   } catch {
     /* sem resposta: segue pelo Drive */
@@ -62,7 +62,7 @@ export function guardarChaveDoLink() {
 }
 
 const chamar = (caminho: string, init?: RequestInit) =>
-  fetch(`./api/${caminho}`, { ...init, headers: { ...init?.headers, "X-Chave": lerChave() } });
+  fetch(`/api/${caminho}`, { ...init, headers: { ...init?.headers, "X-Chave": lerChave() } });
 
 /** Pedido feito no toque em Encerrar: o celular só aceita a pergunta logo depois de um toque. */
 export function pedirPermissaoDeAviso() {
@@ -83,7 +83,7 @@ async function inscrever(id: string) {
   if (inscritoEm === id || !("PushManager" in window) || Notification.permission !== "granted") return;
   inscritoEm = id;
   try {
-    const { vapid } = (await fetch("./api/servidor").then((r) => r.json())) as { vapid: string };
+    const { vapid } = (await fetch("/api/servidor").then((r) => r.json())) as { vapid: string };
     const reg = await navigator.serviceWorker.ready;
     const inscricao =
       (await reg.pushManager.getSubscription()) ??
