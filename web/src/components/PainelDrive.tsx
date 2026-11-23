@@ -1,6 +1,7 @@
-import { CircleAlert, CloudUpload, FolderOpen } from "lucide-react";
+import { CircleAlert, CloudUpload, FolderOpen, Share2 } from "lucide-react";
 import { useState } from "react";
 import { envioAnterior, mandarSumula } from "@/lib/drive";
+import { compartilharLink, linkJogo } from "@/lib/hub";
 import type { Jogo } from "@/lib/tipos";
 
 export const PASTA_DRIVE = "Súmula Digital";
@@ -8,6 +9,7 @@ export const PASTA_DRIVE = "Súmula Digital";
 /** Depois do Encerrar, sem servidor: lembra de pôr a súmula e o vídeo na pasta do Drive. */
 export function PainelDrive({ jogo }: { jogo: Jogo }) {
   const [, atualizar] = useState(0);
+  const [copiado, setCopiado] = useState(false);
   const envio = envioAnterior(jogo);
   const ok = envio && !envio.mudou;
 
@@ -51,6 +53,17 @@ export function PainelDrive({ jogo }: { jogo: Jogo }) {
         }`}
       >
         <CloudUpload className="h-4 w-4" /> {ok ? "Mandar de novo" : "Mandar súmula para o Drive"}
+      </button>
+      {/* O link do hub já pode ir para o grupo: os vídeos aparecem lá quando o PC terminar de cortar. */}
+      <button
+        type="button"
+        onClick={async () => {
+          const r = await compartilharLink(linkJogo(jogo.jogo.id), `${jogo.jogo.nome} · lances`);
+          if (r === "copiado") setCopiado(true);
+        }}
+        className="chanfro chanfro-sm mt-2 flex h-11 w-full items-center justify-center gap-2 bg-foreground font-display-reta text-xs text-background"
+      >
+        <Share2 className="h-4 w-4" /> {copiado ? "Link copiado" : "Enviar o link dos lances para o grupo"}
       </button>
     </section>
   );

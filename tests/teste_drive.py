@@ -61,7 +61,7 @@ def main() -> None:
             return subprocess.Popen(
                 [sys.executable, str(RAIZ / "servidor.py"), "--porta", "8798", "--dados", str(d / "dados"),
                  "--videos", str(drive), "--intervalo", "1", "--estavel", "2"],
-                cwd=RAIZ, stdout=log, stderr=subprocess.STDOUT, env={**os.environ, "PYTHONUTF8": "1"})
+                cwd=RAIZ, stdout=log, stderr=subprocess.STDOUT, env={**os.environ, "PYTHONUTF8": "1", "SUMULA_SEM_HUB": "1"})
 
         srv = ligar()
         try:

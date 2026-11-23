@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// Hub de jogos: qualquer um lê (é o link mandado para os atletas); ninguém escreve pelo app.
+// Só o programa do PC escreve, com a chave da conta de serviço (que passa por cima destas regras).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /jogos/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /{documento=**} {
+      allow read, write: if false;
+    }
+  }
+}

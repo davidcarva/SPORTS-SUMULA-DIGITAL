@@ -1,10 +1,11 @@
-import { Flame, Goal, Volleyball } from "lucide-react";
+import { Clapperboard, Flame, Goal, Volleyball } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { type ConfigTime, criarJogo, montarJogadores } from "@/lib/store";
 import { type Modalidade, MODALIDADES, REGRAS } from "@/lib/regras";
 import type { TimeId } from "@/lib/tipos";
 import { pedirAbertura } from "@/lib/abertura";
+import { ir } from "@/lib/rota";
 import { textoSobre } from "@/lib/cor";
 import { Botao, Cartao } from "./arena";
 import { Destaque } from "./Destaque";
@@ -227,6 +228,21 @@ export function TelaConfig() {
           </h1>
         </div>
       </motion.header>
+
+      {/* O hub: jogos já encerrados, com o vídeo de cada lance por jogador. */}
+      <motion.button
+        type="button"
+        variants={{ oculto: { opacity: 0, y: 20 }, visivel: { opacity: 1, y: 0 } }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => ir("/hub")}
+        className="chanfro chanfro-sm flex items-center gap-3 bg-secondary px-4 py-3 text-left"
+      >
+        <Clapperboard className="h-5 w-5 shrink-0" />
+        <span className="min-w-0 flex-1">
+          <b className="block font-display text-lg leading-tight">Jogos e lances</b>
+          <span className="text-xs text-muted-foreground">Jogos encerrados, com o vídeo de cada ponto por jogador</span>
+        </span>
+      </motion.button>
 
       <CartaoInstalar />
 

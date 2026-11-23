@@ -31,6 +31,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
 import cortar as corte
+import hub
+import requests
 
 RAIZ = Path(__file__).resolve().parent
 DIST = RAIZ / "web" / "dist"
@@ -108,6 +110,7 @@ class Servico:
         self.vapid_publica = self._carregar_vapid()
         self.vistos: dict[Path, tuple[int, float, float]] = {}
         self.info: dict[tuple[str, int, float], tuple[float | None, float] | None] = {}
+        self.hub = hub.Hub.abrir(RAIZ)
         for e in self.banco.todos():  # o PC reiniciou no meio de um corte
             if e["estado"] == "cortando":
                 self.banco.mudar(e["id"], estado="aguardando_video", feitos=0)
@@ -362,8 +365,67 @@ class Servico:
         except OSError as falha:  # pasta do Drive indisponível: os clipes continuam em servidor_dados
             print(f"  não consegui copiar para {destino}: {falha}")
 
+    # ---- hub (o link de jogos com os clipes de cada lance)
+
+    def ids_drive(self, destino: Path, h: dict) -> dict[str, str]:
+        """{caminho do clipe: id no Drive}. Libera a pasta do jogo para quem tiver o link."""
+        try:
+            relativo = destino.relative_to(self.videos)
+        except ValueError:
+            return {}  # entrega fora da pasta do Drive: não há como achar os clipes lá
+        pasta = self.hub.pasta([self.videos.name, *relativo.parts])
+        if not pasta:
+            return {}
+        if h.get("liberada") != pasta:
+            self.hub.liberar(pasta)
+            h["liberada"] = pasta
+        return self.hub.arquivos(pasta)
+
+    def publicar_hub(self) -> None:
+        """Publica cada jogo no hub assim que a súmula chega, e de novo quando os clipes sobem no Drive.
+        O Drive do PC leva alguns minutos para subir os clipes: tenta a cada minuto, por até 2 dias."""
+        if not self.hub:
+            return
+        agora = time.time()
+        for e in self.banco.todos():
+            pasta = self.banco.dir(e["id"])
+            arq = pasta / "sumula.json"
+            if not arq.is_file():
+                continue
+            st = arq.stat()
+            marca = f"{st.st_size}:{st.st_mtime}:{e['estado']}:{e.get('entregue', '')}:{e.get('clipes', 0)}"
+            h = dict(e.get("hub") or {})
+            if h.get("erro") and agora - h.get("quando", 0) < 300:
+                continue
+            mudou = h.get("marca") != marca
+            if not mudou:
+                esperando = h.get("faltam", 0) > 0 and agora - h.get("desde", agora) < 48 * 3600
+                if not esperando or agora - h.get("quando", 0) < 60:
+                    continue
+            try:
+                sumula = corte.Sumula.ler(arq)
+                lista = pasta / "clipes" / "clipes.json"
+                clipes = json.loads(lista.read_text(encoding="utf-8")) if e["estado"] == "pronto" and lista.is_file() else []
+                ids = self.ids_drive(Path(e["entregue"]), h) if clipes and e.get("entregue") else {}
+                doc = hub.montar_documento(sumula, e["estado"], clipes, ids)
+                self.hub.publicar(doc)
+                faltam = sum(1 for c in clipes if not ids.get(c.get("vertical") or c.get("arquivo") or ""))
+                if mudou or faltam != h.get("faltam"):
+                    situacao = f"{doc['clipes']} de {doc['lances']} lances com vídeo" if clipes else "sem clipes ainda"
+                    print(f"Hub: {e['confronto']} publicado ({situacao}).")
+                h.update(marca=marca, quando=agora, faltam=faltam, erro="", desde=agora if mudou else h.get("desde", agora))
+            except (hub.ErroHub, requests.RequestException, OSError, ValueError, SystemExit) as erro:
+                if str(erro) != h.get("erro"):
+                    print(f"Hub: não publiquei {e['confronto']}: {erro}")
+                h.update(quando=agora, erro=str(erro) or "erro")
+            self.banco.mudar(e["id"], hub=h)
+
     def uma_rodada(self) -> None:
         self.ler_sumulas()
+        try:
+            self.publicar_hub()
+        except Exception:  # o hub nunca pode parar os cortes
+            traceback.print_exc()
         arquivos, copiando = self.videos_prontos()
         if copiando:  # espera a cópia acabar, para pegar todas as partes do jogo juntas
             return
@@ -542,6 +604,10 @@ def main() -> None:
         base = servico.endereco or f"http://localhost:{a.porta}"
         print(f"Vigiando súmulas e vídeos em: {servico.videos}")
         print(f"Clipes prontos vão para:      {servico.entrega}")
+        if servico.hub:
+            print(f"Hub de jogos ligado (projeto {servico.hub.projeto}).")
+        else:
+            print("Hub de jogos desligado: falta a chave do Firebase (...-firebase-adminsdk-....json) nesta pasta.")
         if servico.endereco:
             print(f"App servido em {base}")
             print(f"Link para instalar no celular: {base}/?chave={servico.chave}")

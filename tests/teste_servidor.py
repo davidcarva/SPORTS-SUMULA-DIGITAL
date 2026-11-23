@@ -90,7 +90,7 @@ def main() -> None:
             [sys.executable, str(RAIZ / "servidor.py"), "--porta", str(PORTA), "--dados", str(d / "dados"), "--videos", str(d / "videos"),
              "--intervalo", "1", "--estavel", "2", "--endereco", "https://exemplo.test"],
             cwd=RAIZ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
-            env={**os.environ, "PYTHONUTF8": "1"})
+            env={**os.environ, "PYTHONUTF8": "1", "SUMULA_SEM_HUB": "1"})
         try:
             for _ in range(60):
                 if (d / "dados" / "chave.txt").is_file():

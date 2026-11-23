@@ -119,6 +119,32 @@ subir pelo Drive; pelo cabo, copie para a mesma pasta.
 O app também pode ser servido pelo próprio PC (`servidor.py --endereco https://…`): aí a súmula
 chega direto, sem o Drive, e o celular recebe aviso quando os cortes ficam prontos.
 
+## Hub de jogos (o link para os atletas)
+
+`https://sumula-digital-4b570.web.app/hub` lista os jogos em pastas por dia e horário (jogos do
+mesmo dia com menos de 3 h entre eles formam uma pasta, ex.: "Quarta, 19 nov · 19h – 22h"). No
+jogo, cada jogador aparece com um pontinho por lance (cor = período). Tocou no nome, abre a janela
+com o vídeo vertical de cada lance, que toca pelo player do Google Drive, com Baixar e Enviar.
+O link `…/hub/<jogo>?j=<jogador>` abre direto nos lances de uma pessoa.
+
+Quem publica é o `servidor.py` (módulo `hub.py`):
+
+1. assim que a súmula chega, o jogo entra no hub com o placar e os pontos ("vídeos sendo preparados");
+2. depois do corte, ele acha cada clipe na pasta Cortes do Drive, libera a pasta do jogo para
+   "qualquer pessoa com o link" e grava o id de cada vídeo. Como o Drive do PC leva alguns minutos
+   para subir os clipes, ele tenta de novo a cada minuto, por até 2 dias.
+
+Os dados vão para o Firestore (coleção `jogos`, regras em `firestore.rules`: leitura pública,
+escrita só pela chave). Precisa, uma vez:
+
+- a chave da conta de serviço (`…-firebase-adminsdk-….json`) na pasta do projeto (fica fora do git);
+- o Firestore criado no projeto e a **Google Drive API** ativada;
+- a pasta **Súmula Digital** do Drive compartilhada como **Editor** com o e-mail da chave
+  (`firebase-adminsdk-fbsvc@sumula-digital-4b570.iam.gserviceaccount.com`).
+
+Sem a chave, o hub fica desligado e os cortes seguem normais. Os testes rodam com
+`SUMULA_SEM_HUB=1` para nunca publicar jogos de mentira.
+
 ## No dia do jogo
 
 1. **Abrir o app instalado no celular do mesário.** Veja [Instalar no celular](#instalar-no-celular).
