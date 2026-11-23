@@ -109,10 +109,24 @@ Depois disso o app abre sem internet.
 .venv\Scripts\python servidor.py --videos "G:\Meu Drive\Súmula Digital"
 ```
 
-4. Os clipes aparecem em **Súmula Digital › Cortes › Time A contra Time B (data)**. Se algum lance
-   ficou fora do vídeo, a pasta tem um `AVISO.txt`; se não deu para cortar, `NAO_CONSEGUI_CORTAR.txt`.
+4. Depois do corte, cada jogo ganha uma pasta própria, em ordem de data, e a entrada fica limpa:
 
-Súmula corrigida depois (lance trocado ou apagado) gera os clipes de novo: é só mandar outra vez.
+```
+Súmula Digital/                      ← a entrada: súmula e vídeo chegam aqui, com qualquer nome
+└── Jogos/
+    └── 2026-11-23 16h17 · Basquete · Time 1 x Time 2/
+        ├── Súmula - Time 1 x Time 2.json
+        ├── Vídeo - Time 1 x Time 2.mp4      (o bruto; "(parte 2)"… se forem vários)
+        └── Cortes/                           ← clipes horizontais, Vertical/, galeria
+```
+
+   O programa sabe de qual jogo é o vídeo pelo QR (que leva o código do jogo), e não pelo nome do
+   arquivo. Se algum lance ficou fora do vídeo, Cortes tem um `AVISO.txt`; se não deu para cortar,
+   `NAO_CONSEGUI_CORTAR.txt` (aí só a súmula vai para a pasta do jogo, e o vídeo fica na entrada).
+
+Súmula corrigida depois (lance trocado ou apagado) gera os clipes de novo: é só mandar outra vez para
+a entrada. O programa acha o vídeo na pasta do jogo, corta de novo e guarda a súmula antiga como
+"versão anterior". Súmula mandada duas vezes igual vai para a lixeira do Drive.
 O PC precisa estar ligado com o `servidor.py` aberto. Um vídeo de 8 a 10 GB pode levar horas para
 subir pelo Drive; pelo cabo, copie para a mesma pasta.
 
@@ -130,8 +144,8 @@ O link `…/hub/<jogo>?j=<jogador>` abre direto nos lances de uma pessoa.
 Quem publica é o `servidor.py` (módulo `hub.py`):
 
 1. assim que a súmula chega, o jogo entra no hub com o placar e os pontos ("vídeos sendo preparados");
-2. depois do corte, ele acha cada clipe na pasta Cortes do Drive, libera a pasta do jogo para
-   "qualquer pessoa com o link" e grava o id de cada vídeo. Como o Drive do PC leva alguns minutos
+2. depois do corte, ele acha cada clipe na pasta Cortes do jogo, libera **só essa pasta** para
+   "qualquer pessoa com o link" (o vídeo bruto e a súmula continuam privados) e grava o id de cada vídeo. Como o Drive do PC leva alguns minutos
    para subir os clipes, ele tenta de novo a cada minuto, por até 2 dias.
 
 Os dados vão para o Firestore (coleção `jogos`, regras em `firestore.rules`: leitura pública,
@@ -154,7 +168,8 @@ Sem a chave, o hub fica desligado e os cortes seguem normais. Os testes rodam co
    e com modo avião ligado.
 4. **Sincronizar.** Comece a gravar. O mesário toca em **Sincronizar** e mostra a tela para a
    câmera, a 30–50 cm, até a barra encher (5 s).
-5. **Jogo.** Toque **Início do jogo** no salto inicial. A cada cesta, toque no jogador **assim que
+5. **Jogo.** Toque **Início do jogo** no salto inicial. Se esquecer, o jogo começa sozinho no
+   primeiro lance (o botão mostra "auto"); os clipes não dependem disso. A cada cesta, toque no jogador **assim que
    a bola cair** e depois no valor. Se não achar o jogador na hora, toque **MARCAR** do time: o
    horário fica guardado e você escolhe quem foi em seguida. Tocos, roubos e assistências vão em
    **Lance sem ponto**. No fim de cada quarto, toque **Fim do quarto**.

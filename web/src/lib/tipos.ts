@@ -82,6 +82,8 @@ export interface Evento {
   origem?: "jogador" | "time";
   /** Edições feitas depois (troca de atleta ou de valor). */
   editado_em?: number;
+  /** Só em "inicio": o mesário não tocou em "Início do jogo" e o jogo começou sozinho no primeiro lance. */
+  automatico?: boolean;
 }
 
 /** Cabeçalho da súmula (sai no PDF e no story). */

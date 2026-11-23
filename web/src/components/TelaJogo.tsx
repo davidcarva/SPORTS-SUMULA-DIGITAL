@@ -87,9 +87,10 @@ export function TelaJogo({
       <div className="grid grid-cols-3 gap-2">
         <Botao onClick={onInicio} disabled={!!inicio || encerrado} className="px-2 text-xs">
           {inicio ? <Check className="h-4 w-4 text-neon-volt" /> : <Play className="h-4 w-4" />}
-          {inicio ? `Início ${horaCurta(inicio.t)}` : "Início do jogo"}
+          {inicio ? `Início ${horaCurta(inicio.t)}${inicio.automatico ? " · auto" : ""}` : "Início do jogo"}
         </Botao>
-        <Botao onClick={onPeriodo} disabled={!inicio || encerrado} className="px-2 text-xs">
+        {/* Não depende do Início: se o mesário esqueceu, o jogo começa sozinho no primeiro lance ou aqui. */}
+        <Botao onClick={onPeriodo} disabled={encerrado} className="px-2 text-xs">
           <SkipForward className="h-4 w-4" /> Fim {nomePeriodo(jogo, per, true)}
         </Botao>
         <Botao onClick={onEncerrar} disabled={encerrado} className="px-2 text-xs">
@@ -97,8 +98,8 @@ export function TelaJogo({
         </Botao>
       </div>
 
-      {/* Parar/retomar: sempre aqui, sempre do mesmo tamanho. */}
-      {inicio && !encerrado && <BarraPausa jogo={jogo} bloqueado={bloqueado} onParar={onParar} onRetomar={onRetomar} />}
+      {/* Parar/retomar: sempre aqui, sempre do mesmo tamanho (desde antes do início, para a grade não descer). */}
+      {!encerrado && <BarraPausa jogo={jogo} bloqueado={bloqueado} onParar={onParar} onRetomar={onRetomar} />}
 
       <PainelTime
         jogo={jogo}

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -18,6 +19,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from teste_ponta_a_ponta import BASE, ID, RAIZ, gerar_video, sumula  # noqa: E402
+
+
+def ler(arquivos) -> dict | None:
+    lista = list(arquivos)
+    return json.loads(lista[0].read_text(encoding="utf-8")) if len(lista) == 1 else None
 
 
 def main() -> None:
@@ -80,16 +86,32 @@ def main() -> None:
             shutil.copy(video, drive / "VID_do_jogo.mp4")
             e = esperar(lambda e: e.get("estado") in ("pronto", "erro"), 300)
             conferir(e.get("estado") == "pronto", f"corte terminou: {e.get('estado')} {e.get('mensagem')}")
-            pastas = [p for p in (drive / "Cortes").iterdir() if p.is_dir()] if (drive / "Cortes").is_dir() else []
-            conferir(len(pastas) == 1, f"uma pasta de entrega em Cortes (veio {[p.name for p in pastas]})")
+
+            def pastas_jogos() -> list[Path]:
+                return [p for p in (drive / "Jogos").iterdir() if p.is_dir()] if (drive / "Jogos").is_dir() else []
+
+            def organizado(pasta: Path) -> bool:
+                return any(pasta.glob("Vídeo - *.mp4")) and any(pasta.glob("Súmula - *.json"))
+
+            fim = time.time() + 20
+            while time.time() < fim and not (pastas_jogos() and organizado(pastas_jogos()[0])):
+                time.sleep(0.5)
+            pastas = pastas_jogos()
+            conferir(len(pastas) == 1, f"uma pasta para o jogo em Jogos (veio {[p.name for p in pastas]})")
             if pastas:
-                entrega = pastas[0]
-                conferir(entrega.name.startswith("Engenharia contra Direito") or "contra" in entrega.name,
-                         f"pasta com o nome do confronto e a data: {entrega.name}")
-                conferir(len(list(entrega.glob("*.mp4"))) == 3, "3 clipes copiados para o Drive")
+                jogo = pastas[0]
+                conferir(re.fullmatch(r"\d{4}-\d\d-\d\d \d\dh\d\d · Basquete · .+", jogo.name) is not None,
+                         f"pasta com data, hora, modalidade e nome do jogo: {jogo.name}")
+                conferir(len(list(jogo.glob("Súmula - *.json"))) == 1, "súmula guardada na pasta do jogo, com nome bonito")
+                conferir(len(list(jogo.glob("Vídeo - *.mp4"))) == 1, "vídeo bruto guardado na pasta do jogo")
+                entrega = jogo / "Cortes"
+                conferir(len(list(entrega.glob("*.mp4"))) == 3, "3 clipes em Cortes, dentro da pasta do jogo")
                 conferir((entrega / "index.html").is_file(), "galeria copiada junto")
                 conferir("fora do vídeo" in (entrega / "AVISO.txt").read_text(encoding="utf-8")
                          if (entrega / "AVISO.txt").is_file() else False, "AVISO.txt conta o lance que a câmera não pegou")
+            soltos = sorted(p.name for p in drive.iterdir() if p.is_file())
+            conferir(soltos == ["antigo.mp4", "sumula_lixo.txt"],
+                     f"na entrada só sobra o que não é do jogo (sobrou {soltos})")
 
             log_corte = d / "dados" / "jogos" / ID / "corte.log"
             antes = log_corte.stat().st_mtime
@@ -100,12 +122,23 @@ def main() -> None:
             print("Correção pelo Drive")
             dados["eventos"][-1]["removido"] = True
             time.sleep(1.1)  # o Drive guarda a nova versão com outro nome e horário mais novo
-            (drive / f"sumula_teste-sintetico_{ID} (1).txt").write_text(json.dumps(dados, indent=2), encoding="utf-8")
+            # O Drive do Android às vezes salva com o título do jogo, sem "sumula_" e sem extensão.
+            (drive / "Engenharia x Direito").write_text(json.dumps(dados, indent=2), encoding="utf-8")
             esperar(lambda e: e.get("estado") != "pronto", 30)
             e = esperar(lambda e: e.get("estado") in ("pronto", "erro"), 300)
-            pastas = [p for p in (drive / "Cortes").iterdir() if p.is_dir()]
-            conferir(e.get("estado") == "pronto" and len(pastas) == 1, "súmula corrigida gera novo corte, na mesma pasta")
-            conferir(bool(pastas) and not (pastas[0] / "AVISO.txt").exists(), "aviso antigo some depois da correção")
+            fim = time.time() + 20
+            while time.time() < fim and (drive / "Engenharia x Direito").exists():
+                time.sleep(0.5)
+            pastas = pastas_jogos()
+            conferir(e.get("estado") == "pronto" and len(pastas) == 1,
+                     f"súmula corrigida (sem extensão) acha o vídeo na pasta do jogo e corta de novo: {e.get('estado')} {e.get('mensagem')}")
+            conferir(bool(pastas) and not (pastas[0] / "Cortes" / "AVISO.txt").exists(), "aviso antigo some depois da correção")
+            if pastas:
+                nomes = sorted(p.name for p in pastas[0].glob("Súmula - *.json"))
+                conferir(len(nomes) == 2 and any("versão anterior" in n for n in nomes),
+                         f"a súmula nova vale e a antiga fica como versão anterior: {nomes}")
+                conferir(ler(pastas[0].glob("Súmula - *[!)].json")) == dados, "a súmula oficial é a corrigida")
+            conferir(not (drive / "Engenharia x Direito").exists(), "súmula corrigida sai da entrada")
 
             print("PC reiniciado")
             srv.terminate()

@@ -1,8 +1,8 @@
 import type { Modalidade } from "./regras";
 import { useSyncExternalStore } from "react";
-import { pausaAberta, periodoAtual } from "./estatisticas";
+import { ativos, pausaAberta, periodoAtual } from "./estatisticas";
 import { novoId } from "./tempo";
-import { type Evento, FORMATO, type InfoPartida, type Jogador, type Jogo, LIMITES_PADRAO, type LimitesPausa, type MotivoPausa, type Time, type TimeId, VERSAO_APP } from "./tipos";
+import { type Evento, FORMATO, type TipoEvento, type InfoPartida, type Jogador, type Jogo, LIMITES_PADRAO, type LimitesPausa, type MotivoPausa, type Time, type TimeId, VERSAO_APP } from "./tipos";
 
 const CHAVE = "sumula-digital:v2:jogo";
 const CHAVE_COPIA = "sumula-digital:v2:copia";
@@ -169,9 +169,28 @@ export function criarJogo(nome: string, a: ConfigTime, b: ConfigTime, modalidade
 
 type NovoEvento = Pick<Evento, "tipo" | "t"> & Partial<Omit<Evento, "id">>;
 
+/** O que só acontece com a bola rolando: se o mesário esqueceu o "Início do jogo", o jogo começa aqui. */
+const COMECAM_O_JOGO = new Set<TipoEvento>(["ponto", "lance", "falta", "pausa", "periodo"]);
+
 export function registrar(ev: NovoEvento): Evento | null {
   const jogo = estado.jogo;
   if (!jogo) return null;
+  const anteriores = [...jogo.eventos];
+  if (COMECAM_O_JOGO.has(ev.tipo) && !jogo.jogo.encerrado_em && !ativos(jogo).some((x) => x.tipo === "inicio")) {
+    // Sem o início, "Fim do quarto" e "Parar" não têm de onde contar e tudo ficaria no 1º período.
+    anteriores.push({
+      id: novoId(8),
+      tipo: "inicio",
+      t: ev.t - 1,
+      t_confirmado: Date.now(),
+      time: null,
+      jogador: null,
+      valor: 0,
+      removido: false,
+      periodo: 1,
+      automatico: true,
+    });
+  }
   const e: Evento = {
     id: novoId(8),
     time: null,
@@ -182,7 +201,7 @@ export function registrar(ev: NovoEvento): Evento | null {
     t_confirmado: Date.now(),
     ...ev,
   };
-  definir({ ...jogo, eventos: [...jogo.eventos, e] });
+  definir({ ...jogo, eventos: [...anteriores, e] });
   return e;
 }
 

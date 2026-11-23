@@ -27,6 +27,7 @@ import sys
 import threading
 import time
 import traceback
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
@@ -97,6 +98,44 @@ def parece_sumula(p: Path, tamanho: int) -> bool:
         return False
 
 
+MODALIDADES = {"basquete": "Basquete", "futsal": "Futsal", "volei": "Vôlei"}
+
+
+def titulo_do_jogo(sumula: corte.Sumula) -> str:
+    """O nome do jogo como o mesário deu (ou "Time A x Time B"), pronto para nome de arquivo."""
+    d = sumula.dados
+    titulo = d["jogo"].get("nome") or f"{d['times']['A'].get('nome', 'A')} x {d['times']['B'].get('nome', 'B')}"
+    return PROIBIDOS_NO_NOME.sub("", titulo).strip(" .")[:80] or sumula.id
+
+
+def nome_da_pasta(sumula: corte.Sumula) -> str:
+    """"2026-11-23 16h16 · Basquete · Time 1 x Time 2": no Drive, os jogos ficam em ordem de data."""
+    jogo = sumula.dados["jogo"]
+    eventos = sumula.eventos()
+    inicio = next((e["t"] for e in eventos if e["tipo"] == "inicio"),
+                  min((e["t"] for e in eventos if e["tipo"] != "sync"), default=jogo.get("criado_em", 0)))
+    quando = datetime.fromtimestamp(inicio / 1000, sumula.fuso).strftime("%Y-%m-%d %Hh%M")
+    modalidade = MODALIDADES.get(jogo.get("modalidade", "basquete"), "Jogo")
+    return f"{quando} · {modalidade} · {titulo_do_jogo(sumula)}"
+
+
+def livre(p: Path) -> Path:
+    """O caminho, ou "nome (2)", "nome (3)"… se já existir um arquivo com esse nome."""
+    n = 2
+    alvo = p
+    while alvo.exists():
+        alvo = p.with_name(f"{p.stem} ({n}){p.suffix}")
+        n += 1
+    return alvo
+
+
+def ler_json(p: Path) -> dict | None:
+    try:
+        return json.loads(p.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return None
+
+
 def sumula_valida(d: object) -> bool:
     if not isinstance(d, dict) or d.get("formato") not in corte.FORMATOS:
         return False
@@ -110,7 +149,13 @@ class Servico:
     def __init__(self, a: argparse.Namespace):
         self.dados: Path = a.dados
         self.videos: Path = a.videos
-        self.entrega: Path = a.entrega or a.videos / "Cortes"
+        # Cada jogo ganha uma pasta em Jogos/ com a súmula, o vídeo bruto e a subpasta Cortes.
+        self.entrega: Path = a.entrega or a.videos / "Jogos"
+        # Antes os clipes iam para Cortes/<jogo>: esses jogos são trazidos para Jogos/ sozinhos.
+        self.legado: Path = a.videos / "Cortes"
+        # Súmula e vídeo só mudam de lugar se a pasta dos jogos estiver dentro da pasta vigiada:
+        # assim uma súmula corrigida ainda acha o vídeo do jogo.
+        self.organiza = self.videos in self.entrega.parents and self.entrega != self.legado
         self.endereco: str = (a.endereco or "").rstrip("/")
         self.intervalo: float = a.intervalo
         self.estavel: float = a.estavel
@@ -218,10 +263,19 @@ class Servico:
 
     # ---- pasta de vídeos
 
+    def eh_clipe(self, p: Path) -> bool:
+        """Arquivo dentro de Jogos/<jogo>/Cortes (ou da pasta Cortes antiga): é clipe pronto, não vídeo novo."""
+        if self.legado in p.parents and self.legado != self.videos:
+            return True
+        try:
+            partes = p.relative_to(self.entrega).parts
+        except ValueError:
+            return False
+        return len(partes) >= 3 and partes[1] == "Cortes"
+
     def na_pasta(self) -> list[Path]:
-        """Arquivos da pasta vigiada, sem os clipes já entregues."""
-        return [p for p in self.videos.rglob("*")
-                if p.is_file() and p != self.entrega and self.entrega not in p.parents]
+        """Arquivos da pasta vigiada (a entrada e as pastas dos jogos), sem os clipes já entregues."""
+        return [p for p in self.videos.rglob("*") if p.is_file() and not self.eh_clipe(p)]
 
     def ler_sumulas(self) -> None:
         """Súmulas salvas na pasta pelo app. Vale a mais recente de cada jogo."""
@@ -345,7 +399,8 @@ class Servico:
             e.update(estado="aguardando_video", feitos=0, tentados=[])
             self.banco.gravar(e)
             return
-        destino = self.pasta_entrega(e, sumula)
+        destino = self.pasta_jogo(e, sumula) / "Cortes"
+        e = self.banco.ler(id_jogo)
         if codigo == 0 and clipes:
             self.entregar(e, destino, origem=saida, aviso=" ".join(avisos))  # "pronto" só com os clipes no lugar
             e = self.banco.mudar(id_jogo, estado="pronto", clipes=clipes, feitos=clipes, mensagem=" ".join(avisos))
@@ -359,21 +414,140 @@ class Servico:
             self.avisar(e, "Não consegui cortar", f"{e['confronto']}: {motivo}")
             print(f"Falhou: {e['confronto']}: {motivo}")
 
-    def pasta_entrega(self, e: dict, sumula: corte.Sumula) -> Path:
-        marcos = [m["t"] for m in sumula.eventos({"ponto", "lance", "inicio", "sync", "fim"})]
-        dia = time.strftime(" %d-%m-%Y", time.localtime(min(marcos) / 1000)) if marcos else ""
-        nome = PROIBIDOS_NO_NOME.sub("", e["confronto"]).strip(" .") or e["id"]
-        return self.entrega / f"{nome}{dia}"
+    # ---- a pasta de cada jogo: Jogos/<data hora · modalidade · jogo>/ com súmula, vídeo e Cortes
+
+    def pasta_jogo(self, e: dict, sumula: corte.Sumula) -> Path:
+        """A pasta do jogo. Se o nome mudou (súmula corrigida com outro nome de time), renomeia a antiga:
+        no Drive a pasta continua a mesma, com o mesmo link."""
+        nova = self.entrega / nome_da_pasta(sumula)
+        antiga = Path(e["pasta"]) if e.get("pasta") else None
+        if antiga and antiga != nova and antiga.is_dir():
+            if nova.exists():
+                nova = antiga
+            else:
+                try:
+                    antiga.rename(nova)
+                    self.mudou_de_lugar(e["id"], antiga, nova)
+                except OSError as falha:
+                    print(f"  não consegui renomear a pasta do jogo: {falha}")
+                    nova = antiga
+        try:
+            nova.mkdir(parents=True, exist_ok=True)
+        except OSError as falha:
+            print(f"  não consegui criar {nova}: {falha}")
+        if e.get("pasta") != str(nova):
+            self.banco.mudar(e["id"], pasta=str(nova))
+        return nova
+
+    def mudou_de_lugar(self, id_jogo: str, antes: Path, depois: Path) -> None:
+        """Arquivos que estavam em `antes` agora estão em `depois`: atualiza o que o programa lembra deles."""
+        def trocar(p: Path) -> Path:
+            return depois / p.relative_to(antes) if p == antes or antes in p.parents else p
+
+        e = self.banco.ler(id_jogo)
+        videos = [self.chave_video(trocar(self.videos / v)) for v in e["videos"]]
+        entregue = str(trocar(Path(e["entregue"]))) if e.get("entregue") else None
+        self.banco.mudar(id_jogo, videos=videos, entregue=entregue)
+        self.vistos = {trocar(p): v for p, v in self.vistos.items()}
+        self.lidas = {trocar(p): v for p, v in self.lidas.items()}
+
+    def mover(self, de: Path, para: Path) -> Path:
+        """Move dentro do Drive (é só uma troca de pasta: nada sobe de novo)."""
+        para = livre(para)
+        shutil.move(str(de), str(para))
+        for memoria in (self.vistos, self.lidas):
+            if de in memoria:
+                memoria[para] = memoria.pop(de)
+        return para
+
+    def organizar(self) -> None:
+        """Depois do corte, junta tudo de cada jogo na pasta dele: súmula, vídeo bruto e Cortes.
+        Jogo esperando vídeo fica com a súmula na entrada, até o vídeo chegar."""
+        if not self.organiza:
+            return
+        for e in self.banco.todos():
+            if e["estado"] not in ("pronto", "erro") or not (self.banco.dir(e["id"]) / "sumula.json").is_file():
+                continue
+            try:
+                self.organizar_jogo(e)
+                if e.get("erro_pasta"):
+                    self.banco.mudar(e["id"], erro_pasta="")
+            except OSError as falha:
+                if str(falha) != e.get("erro_pasta"):
+                    print(f"Não consegui organizar {e['confronto']}: {falha}")
+                    self.banco.mudar(e["id"], erro_pasta=str(falha))
+        self.apagar_pasta_antiga()
+
+    def organizar_jogo(self, e: dict) -> None:
+        sumula = corte.Sumula.ler(self.banco.dir(e["id"]) / "sumula.json")
+        pasta = self.pasta_jogo(e, sumula)
+        e = self.banco.ler(e["id"])
+        titulo = titulo_do_jogo(sumula)
+        self.guardar_sumulas(e, pasta, titulo)
+        if e["estado"] != "pronto":  # sem corte, não dá para ter certeza de que o vídeo é deste jogo
+            return
+        videos = []
+        for i, rel in enumerate(e["videos"]):
+            v = self.videos / rel
+            if v.parent != pasta and v.is_file():
+                parte = f" (parte {i + 1})" if len(e["videos"]) > 1 else ""
+                v = self.mover(v, pasta / f"Vídeo - {titulo}{parte}{v.suffix.lower()}")
+                print(f"Organizado: {rel} → {v.relative_to(self.videos)}")
+            videos.append(self.chave_video(v))
+        if videos != e["videos"]:
+            self.banco.mudar(e["id"], videos=videos)
+        # Jogo cortado antes desta versão: os clipes estavam em Cortes/<jogo>. A pasta vai inteira,
+        # com o mesmo link no Drive (o hub continua achando os vídeos).
+        entregue = Path(e["entregue"]) if e.get("entregue") else None
+        if entregue and entregue.parent == self.legado and entregue.is_dir() and not (pasta / "Cortes").exists():
+            shutil.move(str(entregue), str(pasta / "Cortes"))
+            self.banco.mudar(e["id"], entregue=str(pasta / "Cortes"))
+            print(f"Organizado: cortes de {e['confronto']} → {(pasta / 'Cortes').relative_to(self.videos)}")
+
+    def guardar_sumulas(self, e: dict, pasta: Path, titulo: str) -> None:
+        """A súmula que vale vira "Súmula - <jogo>.json" na pasta do jogo. Cópia repetida (o celular
+        mandou duas vezes) vai para a lixeira do Drive; versão diferente fica como "versão anterior"."""
+        oficial = pasta / f"Súmula - {titulo}.json"
+        vale = ler_json(self.banco.dir(e["id"]) / "sumula.json")
+        # Só as que estão fora da pasta do jogo: as de dentro já foram guardadas.
+        soltas = [p for p, (_, _, d) in self.lidas.items()
+                  if d and d["jogo"]["id"] == e["id"] and p.parent != pasta and p.is_file()]
+        for p in sorted(soltas, key=lambda x: x.stat().st_mtime):
+            dados = self.lidas[p][2]
+            if dados != vale:
+                self.mover(p, pasta / f"Súmula - {titulo} (versão anterior).json")
+            elif oficial.is_file() and ler_json(oficial) == vale:
+                p.unlink()
+                self.lidas.pop(p, None)
+            else:
+                if oficial.is_file():
+                    self.mover(oficial, pasta / f"Súmula - {titulo} (versão anterior).json")
+                self.mover(p, oficial)
+
+    def apagar_pasta_antiga(self) -> None:
+        """A pasta Cortes de antes some quando o último jogo dela já foi para Jogos/."""
+        if self.legado == self.videos or not self.legado.is_dir():
+            return
+        if any(x.name.lower() != "desktop.ini" for x in self.legado.iterdir()):
+            return
+        if any(Path(e.get("entregue") or "").parent == self.legado for e in self.banco.todos()):
+            return
+        shutil.rmtree(self.legado, ignore_errors=True)
 
     def entregar(self, e: dict, destino: Path, origem: Path | None = None, aviso: str = "", erro: str = "") -> None:
-        """Copia os clipes para a pasta Cortes (no Drive, eles sobem sozinhos). Troca a entrega anterior."""
+        """Copia os clipes para Jogos/<jogo>/Cortes (no Drive, eles sobem sozinhos). Troca a entrega anterior,
+        mas mantém a pasta: no Drive ela continua com o mesmo link liberado para o hub."""
         try:
-            for antiga in {e.get("entregue"), str(destino)} - {None}:
-                p = Path(antiga)
-                if p.parent == self.entrega and p.is_dir():
-                    shutil.rmtree(p)
+            antiga = Path(e["entregue"]) if e.get("entregue") else None
+            if antiga and antiga != destino and antiga.is_dir() and (
+                    antiga.parent == self.legado or (antiga.name == "Cortes" and self.entrega in antiga.parents)):
+                shutil.rmtree(antiga)
+            destino.mkdir(parents=True, exist_ok=True)
+            for x in destino.iterdir():
+                if x.name.lower() != "desktop.ini":
+                    shutil.rmtree(x) if x.is_dir() else x.unlink()
             if origem:
-                shutil.copytree(origem, destino)
+                shutil.copytree(origem, destino, dirs_exist_ok=True)
                 if aviso:
                     (destino / "AVISO.txt").write_text(aviso + "\n", encoding="utf-8")
             else:
@@ -385,15 +559,16 @@ class Servico:
 
     # ---- hub (o link de jogos com os clipes de cada lance)
 
-    def ids_drive(self, destino: Path, h: dict) -> dict[str, str]:
-        """{caminho do clipe: id no Drive}. Libera a pasta do jogo para quem tiver o link."""
+    def ids_drive(self, destino: Path, h: dict) -> dict[str, str] | None:
+        """{caminho do clipe: id no Drive}, ou None se a pasta ainda não apareceu no Drive.
+        Libera para quem tiver o link só a pasta Cortes do jogo (o vídeo bruto e a súmula ficam privados)."""
         try:
             relativo = destino.relative_to(self.videos)
         except ValueError:
             return {}  # entrega fora da pasta do Drive: não há como achar os clipes lá
         pasta = self.hub.pasta([self.videos.name, *relativo.parts])
         if not pasta:
-            return {}
+            return None
         if h.get("liberada") != pasta:
             self.hub.liberar(pasta)
             h["liberada"] = pasta
@@ -415,6 +590,8 @@ class Servico:
             h = dict(e.get("hub") or {})
             if h.get("erro") and agora - h.get("quando", 0) < 300:
                 continue
+            if h.get("espera") and agora - h["espera"] < 30:
+                continue
             mudou = h.get("marca") != marca
             if not mudou:
                 esperando = h.get("faltam", 0) > 0 and agora - h.get("desde", agora) < 48 * 3600
@@ -425,6 +602,15 @@ class Servico:
                 lista = pasta / "clipes" / "clipes.json"
                 clipes = json.loads(lista.read_text(encoding="utf-8")) if e["estado"] == "pronto" and lista.is_file() else []
                 ids = self.ids_drive(Path(e["entregue"]), h) if clipes and e.get("entregue") else {}
+                if ids is None:
+                    if h.get("marca"):
+                        # Pasta recém-criada ou movida que o Drive ainda não mostra: o hub fica com o que
+                        # já tinha (sem apagar os vídeos) e tenta de novo daqui a pouco.
+                        h["espera"] = agora
+                        self.banco.mudar(e["id"], hub=h)
+                        continue
+                    ids = {}
+                h["espera"] = 0
                 doc = hub.montar_documento(sumula, e["estado"], clipes, ids)
                 self.hub.publicar(doc)
                 faltam = sum(1 for c in clipes if not ids.get(c.get("vertical") or c.get("arquivo") or ""))
@@ -440,6 +626,7 @@ class Servico:
 
     def uma_rodada(self) -> None:
         self.ler_sumulas()
+        self.organizar()
         try:
             self.publicar_hub()
         except Exception:  # o hub nunca pode parar os cortes
@@ -600,7 +787,7 @@ def main() -> None:
     ap.add_argument("--porta", type=int, default=8000)
     ap.add_argument("--videos", type=Path, default=RAIZ / "videos",
                     help="pasta vigiada, onde chegam súmulas e vídeos (a do Google Drive ou a do cabo)")
-    ap.add_argument("--entrega", type=Path, help="para onde vão os clipes prontos (padrão: subpasta Cortes)")
+    ap.add_argument("--entrega", type=Path, help="onde fica a pasta de cada jogo, com os cortes (padrão: subpasta Jogos)")
     ap.add_argument("--drive", action="store_true",
                     help=f'vigia a pasta "{PASTA_DRIVE}" do Google Drive para computador (acha a letra sozinho)')
     ap.add_argument("--dados", type=Path, default=RAIZ / "servidor_dados", help="súmulas, clipes e chaves")
@@ -621,7 +808,7 @@ def main() -> None:
     with http.server.ThreadingHTTPServer(("0.0.0.0" if a.rede else "127.0.0.1", a.porta), Pagina) as srv:
         base = servico.endereco or f"http://localhost:{a.porta}"
         print(f"Vigiando súmulas e vídeos em: {servico.videos}")
-        print(f"Clipes prontos vão para:      {servico.entrega}")
+        print(f"Cada jogo ganha uma pasta em: {servico.entrega}")
         if servico.hub:
             print(f"Hub de jogos ligado (projeto {servico.hub.projeto}).")
         else:
