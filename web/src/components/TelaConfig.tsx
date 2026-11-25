@@ -77,7 +77,7 @@ function EscolhaModalidade({ valor, corA, corB, onMudar }: { valor: Modalidade; 
 const RESUMO: Record<Modalidade, string> = {
   basquete: "4 quartos · +1 +2 +3 · faltas FIBA (5 exclui) · coletivas: 5ª vira lance livre",
   futsal: "2 tempos · gol · faltas acumuladas: a 6ª vira tiro livre · cartões amarelo e vermelho · 1 tempo técnico por tempo",
-  volei: "Sets · ponto a ponto (erro do adversário: linha Equipe) · 2 tempos por set · cartões",
+  volei: "Sets · ponto a ponto (o outro time errou: linha Erro do adversário, com o motivo) · 2 tempos por set · cartões",
 };
 
 const elenco = (lista: [string, string][]) => lista.map(([n, nome]) => novaLinha(n, nome));

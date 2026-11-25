@@ -1,5 +1,5 @@
 import { regras } from "./regras";
-import { type Evento, type Jogador, type Jogo, type LimitesPausa, MOTIVOS_PAUSA, NOMES_FALTA, type TimeId } from "./tipos";
+import { type Evento, type Jogador, type Jogo, type LimitesPausa, type MotivoErro, MOTIVOS_PAUSA, NOMES_FALTA, type TimeId } from "./tipos";
 
 export type Placar = Record<TimeId, number>;
 
@@ -72,9 +72,31 @@ export function nomeJogador(jogo: Jogo, id: string | null): string {
   return `${j.numero ? `#${j.numero} ` : ""}${j.nome}`;
 }
 
+/** Os motivos, na ordem dos botões. O texto deixa claro que quem errou foi o OUTRO time. */
+export const MOTIVOS_ERRO: { id: MotivoErro; botao: string; texto: string }[] = [
+  { id: "saque", botao: "Saque", texto: "erro de saque" },
+  { id: "ataque", botao: "Ataque", texto: "erro de ataque" },
+  { id: "rede", botao: "Rede", texto: "rede ou invasão" },
+  { id: "outro", botao: "Outro", texto: "erro" },
+];
+
+/** Ponto do vôlei na linha Equipe: o time pontuou porque o adversário errou. */
+export function pontoPorErro(jogo: Jogo, e: Evento): boolean {
+  return jogo.jogo.modalidade === "volei" && e.tipo === "ponto" && !e.jogador && (e.time === "A" || e.time === "B");
+}
+
+/** "Erro de saque do adversário (Direito)": o ponto é do time, quem errou foi o outro. */
+export function textoErro(jogo: Jogo, e: Evento): string {
+  const outro = e.time === "A" ? jogo.times.B : jogo.times.A;
+  const m = MOTIVOS_ERRO.find((x) => x.id === e.erro);
+  const como = m ? m.texto : "erro";
+  return `${como[0].toUpperCase()}${como.slice(1)} do adversário (${outro.nome})`;
+}
+
 export function descrever(jogo: Jogo, e: Evento): string {
   switch (e.tipo) {
     case "ponto":
+      if (pontoPorErro(jogo, e)) return `Ponto · ${textoErro(jogo, e)}`;
       return `${regras(jogo).rotuloValor(e.valor)} · ${nomeJogador(jogo, e.jogador)}`;
     case "lance":
       return `Lance · ${nomeJogador(jogo, e.jogador)}`;

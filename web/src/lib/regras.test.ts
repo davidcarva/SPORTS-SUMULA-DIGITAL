@@ -136,7 +136,10 @@ describe("vôlei", () => {
     expect(faltasColetivas(j, "A", 1)).toBe(0);
     expect(estourou(j, 99)).toBe(false);
     expect(pedidosDeTempo(j, "B", 2)).toEqual({ usados: 1, limite: 2, rotulo: "2º set" });
-    expect(descrever(j, ev({ tipo: "ponto", valor: 1, time: "B", jogador: null }))).toBe("Ponto · Sem jogador");
+    // Ponto sem jogador no vôlei: o time B pontuou porque o A errou.
+    expect(descrever(j, ev({ tipo: "ponto", valor: 1, time: "B", jogador: null }))).toBe(
+      `Ponto · Erro do adversário (${j.times.A.nome})`,
+    );
   });
 });
 

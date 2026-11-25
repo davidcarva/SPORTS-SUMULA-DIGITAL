@@ -439,16 +439,28 @@ function FolhaJogador({ jogo, jogador, inicial, onFechar }: { jogo: JogoHub; jog
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <a
-              href={id ? baixarDoDrive(id) : undefined}
-              target="_blank"
-              rel="noreferrer"
-              aria-disabled={!id}
-              className={`chanfro chanfro-sm flex h-11 items-center justify-center gap-1.5 bg-foreground font-display-reta text-xs text-background ${id ? "" : "pointer-events-none opacity-40"}`}
-            >
-              <Download className="h-4 w-4" /> Baixar
-            </a>
+          {/* Baixar em qualquer um dos dois formatos, sem precisar trocar o que está na tela. */}
+          <div className="grid grid-cols-2 gap-2">
+            {FORMATOS.map(({ f, rotulo, Icone }) => {
+              const arq = (f === "vertical" ? l.v : l.o) || null;
+              return (
+                <a
+                  key={f}
+                  href={arq ? baixarDoDrive(arq) : undefined}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-disabled={!arq}
+                  className={`chanfro chanfro-sm flex h-11 items-center justify-center gap-1.5 font-display-reta text-xs ${
+                    f === usado ? "bg-foreground text-background" : "bg-secondary"
+                  } ${arq ? "" : "pointer-events-none opacity-40"}`}
+                >
+                  <Download className="h-4 w-4" />
+                  <Icone className="h-4 w-4" /> Baixar {rotulo.toLowerCase()}
+                </a>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
             <a
               href={id ? abrirNoDrive(id) : undefined}
               target="_blank"

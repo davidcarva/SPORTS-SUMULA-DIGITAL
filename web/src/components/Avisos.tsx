@@ -9,6 +9,9 @@ export interface Toast {
   texto: string;
   cor?: string;
   desfazer?: () => void;
+  /** Botões de um toque embaixo do texto (ex.: o motivo do erro do adversário). Opcionais. */
+  pergunta?: string;
+  opcoes?: { rotulo: string; acao: () => void }[];
 }
 
 export function useToast() {
@@ -17,7 +20,8 @@ export function useToast() {
   const mostrar = useCallback((t: Omit<Toast, "id">) => {
     clearTimeout(timer.current);
     setToast({ ...t, id: Date.now() });
-    timer.current = setTimeout(() => setToast(null), 5000);
+    // Com opções, fica um pouco mais: o mesário pode responder entre um rali e outro.
+    timer.current = setTimeout(() => setToast(null), t.opcoes?.length ? 9000 : 5000);
   }, []);
   const fechar = useCallback(() => setToast(null), []);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -35,22 +39,41 @@ export function ToastView({ toast, onFechar }: { toast: Toast | null; onFechar: 
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 20, opacity: 0 }}
             transition={{ type: "spring", stiffness: 500, damping: 34 }}
-            className="chanfro chanfro-sm pointer-events-auto flex max-w-md items-center gap-3 bg-foreground py-2.5 pr-2.5 pl-4 text-background shadow-2xl"
+            className="chanfro chanfro-sm pointer-events-auto flex max-w-md flex-col gap-2 bg-foreground py-2.5 pr-2.5 pl-4 text-background shadow-2xl"
             style={{ boxShadow: `inset 3px 0 0 ${toast.cor ?? "var(--neon-volt)"}` }}
           >
-            <span className="text-sm font-medium">{toast.texto}</span>
-            {toast.desfazer && (
-              <button
-                type="button"
-                onClick={() => {
-                  toast.desfazer?.();
-                  onFechar();
-                }}
-                className="chanfro chanfro-sm bg-background/15 px-3 py-1.5 font-display-reta text-xs text-background hover:bg-background/25"
-              >
-                Desfazer
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium">{toast.texto}</span>
+              {toast.desfazer && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.desfazer?.();
+                    onFechar();
+                  }}
+                  className="chanfro chanfro-sm shrink-0 bg-background/15 px-3 py-1.5 font-display-reta text-xs text-background hover:bg-background/25"
+                >
+                  Desfazer
+                </button>
+              )}
+            </div>
+            {toast.opcoes?.length ? (
+              <div className="flex flex-col gap-1.5">
+                {toast.pergunta && <span className="font-display-reta text-[10px] text-background/70">{toast.pergunta}</span>}
+                <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${toast.opcoes.length}, minmax(0, 1fr))` }}>
+                  {toast.opcoes.map((o) => (
+                    <button
+                      key={o.rotulo}
+                      type="button"
+                      onClick={o.acao}
+                      className="chanfro chanfro-sm h-10 bg-background/15 px-2 font-display text-base text-background hover:bg-background/25"
+                    >
+                      {o.rotulo}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>

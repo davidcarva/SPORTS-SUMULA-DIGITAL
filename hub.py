@@ -108,8 +108,12 @@ def montar_documento(sumula: corte.Sumula, estado: str, clipes: list[dict], ids:
             continue
         chave = e.get("jogador") or f"sem-{t}"
         if chave not in jogadores:
-            jogadores[chave] = {"id": chave, "time": t, "numero": "", "nome": "Equipe", "pontos": 0, "lances": []}
+            # Vôlei: ponto sem jogador é o adversário errando. Não é highlight de ninguém do time.
+            nome = "Erros do adversário" if jogo.get("modalidade") == "volei" else "Equipe"
+            jogadores[chave] = {"id": chave, "time": t, "numero": "", "nome": nome, "pontos": 0, "lances": []}
         _, oque = sumula.descrever(e)
+        if sumula.ponto_por_erro(e):
+            oque = corte.MOTIVOS_ERRO.get(e.get("erro") or "", "Erro")
         valor = int(e.get("valor") or (1 if e["tipo"] == "ponto" else 0)) if e["tipo"] == "ponto" else 0
         if e["tipo"] == "ponto":
             placar[t] += valor
@@ -134,7 +138,8 @@ def montar_documento(sumula: corte.Sumula, estado: str, clipes: list[dict], ids:
             **({"a": angulos} if len(angulos) > 1 else {}),
         })
 
-    lista = sorted(jogadores.values(), key=lambda j: (j["time"], -j["pontos"], -len(j["lances"]),
+    # Os pontos sem jogador (Equipe / erros do adversário) vão para o fim de cada time.
+    lista = sorted(jogadores.values(), key=lambda j: (j["time"], j["id"].startswith("sem-"), -j["pontos"], -len(j["lances"]),
                                                       int(j["numero"]) if str(j["numero"]).isdigit() else 999))
     times = {t: {k: d["times"][t].get(k, "") for k in ("nome", "sigla", "cor")} for t in ("A", "B")}
     com_clipe = sum(1 for j in lista for x in j["lances"] if x["v"] or x["o"])

@@ -234,7 +234,7 @@ function gol(s: number, quem: Pessoa, rival: string): Cena {
   };
 }
 
-function pontoVolei(s: number, quem: Pessoa, rival: string): Cena {
+function pontoVolei(s: number, quem: Pessoa, rival: string, sub = "Ataque"): Cena {
   const bola = DESENHOS.volei.bola.cor;
   const ataque: [number, number] = [-s * 1.1, 1.4 * s];
   const bloqueio: [number, number] = [s * 0.8, 1.2 * s];
@@ -249,7 +249,7 @@ function pontoVolei(s: number, quem: Pessoa, rival: string): Cena {
     foco: [s * 1.5, 0, 1.5],
     zoom: 1.45,
     titulo: "Ponto",
-    sub: "Ataque",
+    sub,
     atores: (c, t) => {
       const pulo = entre(t, [330, 720]);
       const z = Math.sin(pulo * Math.PI) * 1.15;
@@ -378,7 +378,11 @@ function montarCena(jogo: Jogo, ev: Evento): Cena | null {
     return falta(jogo, s, quem, outro.cor, ev.falta ?? "P", !!st?.excluido);
   }
   if (jogo.jogo.modalidade === "futsal") return gol(s, quem, outro.cor);
-  if (jogo.jogo.modalidade === "volei") return pontoVolei(s, quem, outro.cor);
+  if (jogo.jogo.modalidade === "volei") {
+    // Sem jogador: ninguém do time atacou, foi o adversário que errou.
+    if (!j) return pontoVolei(s, { ...quem, nome: time.sigla }, outro.cor, "Erro do adversário");
+    return pontoVolei(s, quem, outro.cor);
+  }
   return cesta(s, quem, outro.cor, ev.valor || 2);
 }
 

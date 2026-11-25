@@ -100,7 +100,10 @@ function Linha({
           </span>
         )}
         <span className="min-w-0">
-          <span className="block truncate font-display-reta text-[15px] leading-tight">{jogador ? jogador.nome : "Equipe"}</span>
+          {/* No vôlei, ponto sem jogador é sempre o adversário errando: o nome da linha já diz isso. */}
+          <span className="block truncate font-display-reta text-[15px] leading-tight">
+            {jogador ? jogador.nome : r.id === "volei" ? "Erro do adversário" : "Equipe"}
+          </span>
           <span className="mt-1 flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
             {st.excluido ? (
               <span className="shrink-0 bg-destructive/20 px-1 font-display-reta text-[10px] text-destructive">Excluído</span>
@@ -307,7 +310,7 @@ export function PainelTime({
         {r.id === "futsal" &&
           "Gol e F registram na hora, com o horário do toque. Toque no nome para cartão amarelo, vermelho e lance sem gol. Gol contra ou sem autor: linha Equipe."}
         {r.id === "volei" &&
-          "Ponto registra na hora, com o horário do toque. Erro do adversário: Ponto na linha Equipe. Toque no nome para cartões e lance sem ponto."}{" "}
+          "Ponto registra na hora, com o horário do toque. O adversário errou (saque, ataque, rede)? Ponto na linha Erro do adversário deste time e, se der, toque no motivo. Toque no nome para cartões e lance sem ponto."}{" "}
         Sem tempo de ver quem foi? <b>Marcar agora</b> guarda o horário e você completa depois.
       </p>
     </section>

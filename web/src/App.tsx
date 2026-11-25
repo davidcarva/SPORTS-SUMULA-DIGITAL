@@ -26,10 +26,12 @@ import {
   faltasColetivas,
   fimDoPeriodo,
   limitePausa,
+  MOTIVOS_ERRO,
   nomePausa,
   nomePeriodo,
   pausaAberta,
   periodoAtual,
+  pontoPorErro,
   situacao,
   ultimoLance,
 } from "@/lib/estatisticas";
@@ -148,10 +150,24 @@ export default function App() {
     if (!e || !atual) return;
     setLanceVisto(e);
     const st = esc.tipo === "falta" ? situacao(atual, esc.time, esc.jogador) : null;
+    const desfazer = () => alterarEvento(e.id, { removido: true });
+    // Vôlei, ponto na linha Equipe: o time pontuou porque o OUTRO errou. Um toque (opcional) diz como.
+    const porErro = pontoPorErro(atual, e);
     mostrar({
       texto: mensagem(atual, e) + retomou,
       cor: st?.excluido ? "var(--destructive)" : atual.times[esc.time].cor,
-      desfazer: () => alterarEvento(e.id, { removido: true }),
+      desfazer,
+      ...(porErro && {
+        pergunta: `Como o ${atual.times[esc.time === "A" ? "B" : "A"].nome} errou? (opcional)`,
+        opcoes: MOTIVOS_ERRO.map((m) => ({
+          rotulo: m.botao,
+          acao: () => {
+            alterarEvento(e.id, { erro: m.id });
+            const depois = jogoAtual();
+            if (depois) mostrar({ texto: `${atual.times[esc.time].sigla} ${descrever(depois, { ...e, erro: m.id })}`, cor: atual.times[esc.time].cor, desfazer });
+          },
+        })),
+      }),
     });
     navigator.vibrate?.(st?.excluido ? [60, 60, 160] : esc.tipo === "falta" ? [20, 50, 20] : 25);
   };

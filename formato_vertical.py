@@ -188,10 +188,13 @@ def montar_ass(t: Tarja, duracao: float, fonte: str) -> str:
         f"Dialogue: 2,{e0},{fim},Lance,,0,0,0,,"
         f"{{\\pos(70,{yb - 12})\\fscx150\\fscy150\\t(180,360,\\fscx100\\fscy100)\\fad(120,0)}}{_limpar(t.lance).upper()}"
     )
-    # Nome do atleta e, embaixo, time e placar.
+    # Nome do atleta e, embaixo, time e placar. Texto longo ("ERRO DE SAQUE DO ADVERSÁRIO", nome
+    # comprido) encolhe na largura para caber com folga nos 1080 px.
+    nome = _limpar(t.nome).upper()
+    aperto = f"\\fscx{max(60, round(100 * 22 / len(nome)))}" if len(nome) > 22 else ""
     linhas.append(
         f"Dialogue: 2,{e0},{fim},Nome,,0,0,0,,"
-        f"{{\\move(-200,{yb + 92},70,{yb + 92},120,380)\\fad(150,0)}}{_limpar(t.nome).upper()}"
+        f"{{\\move(-200,{yb + 92},70,{yb + 92},120,380)\\fad(150,0){aperto}}}{nome}"
     )
     info = _limpar(f"{t.time}  ·  {t.placar}").upper()
     linhas.append(

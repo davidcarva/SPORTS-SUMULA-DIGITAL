@@ -59,6 +59,9 @@ export interface LimitesPausa {
 }
 export const LIMITES_PADRAO: LimitesPausa = { tempo: 60, intervalo: 120, meio: 600, outras: 180 };
 
+/** Por que o adversário deu o ponto (vôlei): saque fora, ataque fora, rede/invasão, outro erro. */
+export type MotivoErro = "saque" | "ataque" | "rede" | "outro";
+
 export interface Evento {
   id: string;
   tipo: TipoEvento;
@@ -86,6 +89,8 @@ export interface Evento {
   automatico?: boolean;
   /** Só em "sync": as câmeras que filmaram o QR nesta abertura da tela (o QR leva o número). */
   cameras?: number[];
+  /** Só em "ponto" sem jogador no vôlei: o time pontuou porque o ADVERSÁRIO errou, e como. */
+  erro?: MotivoErro;
 }
 
 /** Cabeçalho da súmula (sai no PDF e no story). */

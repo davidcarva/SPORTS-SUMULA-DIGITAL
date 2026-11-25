@@ -41,6 +41,8 @@ FORMATOS = {"sumula-highlights/1", "sumula-highlights/2"}
 QR_PASSO_MS = {"SDH1": 200, "SDH2": 100, "SDK": 100}
 QR_CAMERA = re.compile(r"SDK([1-9]):([A-Za-z0-9]+):([A-Za-z0-9]+)")
 TIPOS_COM_CLIPE = {"ponto", "lance"}
+# Vôlei: por que o adversário deu o ponto (o mesário escolhe no app; web/src/lib/estatisticas.ts)
+MOTIVOS_ERRO = {"saque": "Erro de saque", "ataque": "Erro de ataque", "rede": "Rede ou invasão", "outro": "Erro"}
 
 import formato_vertical as vertical  # noqa: E402  (render 9:16 vindo do programa Cortes)
 MIN_LEITURAS = 5          # leituras mínimas para aceitar um trecho de QR
@@ -145,10 +147,21 @@ class Sumula:
         """Momentos em que a tela do QR ficou aberta (app atual registra início e fim)."""
         return [e for e in self.eventos({"sync"}) if e.get("t_fim")]
 
+    def ponto_por_erro(self, e: dict) -> bool:
+        """Vôlei, ponto sem jogador: o time pontuou porque o ADVERSÁRIO errou."""
+        return (self.dados["jogo"].get("modalidade") == "volei" and e["tipo"] == "ponto"
+                and not e.get("jogador") and e.get("time") in ("A", "B"))
+
+    def texto_erro(self, e: dict) -> str:
+        """"Erro de saque do adversário": deixa claro que quem errou foi o outro time."""
+        return f"{MOTIVOS_ERRO.get(e.get('erro') or '', 'Erro')} do adversário"
+
     def descrever(self, e: dict) -> tuple[str, str]:
         """(quem, o quê) de um evento."""
         j = self.jogadores.get(e.get("jogador") or "")
         quem = (f"#{j['numero']} " if j and j.get("numero") else "") + (j["nome"] if j else "Sem jogador")
+        if self.ponto_por_erro(e):
+            quem = self.texto_erro(e)
         mod = self.dados["jogo"]["modalidade"]
         if e["tipo"] == "lance":
             oque = "Lance"
