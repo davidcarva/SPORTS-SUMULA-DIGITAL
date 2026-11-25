@@ -3,6 +3,7 @@ import { useState } from "react";
 import { envioAnterior, mandarSumula } from "@/lib/drive";
 import { compartilharLink, linkJogo } from "@/lib/hub";
 import type { Jogo } from "@/lib/tipos";
+import { ConferenciaPC, useConferencia } from "./Conferencia";
 
 export const PASTA_DRIVE = "Súmula Digital";
 
@@ -12,6 +13,7 @@ export function PainelDrive({ jogo }: { jogo: Jogo }) {
   const [copiado, setCopiado] = useState(false);
   const envio = envioAnterior(jogo);
   const ok = envio && !envio.mudou;
+  const conf = useConferencia(jogo.jogo.id);
 
   const mandar = () => void mandarSumula(jogo).then(() => atualizar((n) => n + 1));
 
@@ -30,7 +32,7 @@ export function PainelDrive({ jogo }: { jogo: Jogo }) {
             </b>
             <span className="text-muted-foreground">
               {envio.como === "baixada" ? `Coloque o arquivo na pasta ${PASTA_DRIVE} do Drive. ` : ""}
-              Mande o vídeo para a mesma pasta. Os clipes aparecem em {PASTA_DRIVE} › Cortes.
+              Mande o vídeo de cada câmera para a mesma pasta (pode ser depois). O jogo ganha uma pasta em {PASTA_DRIVE} › Jogos.
             </span>
           </p>
         </div>
@@ -65,6 +67,12 @@ export function PainelDrive({ jogo }: { jogo: Jogo }) {
       >
         <Share2 className="h-4 w-4" /> {copiado ? "Link copiado" : "Enviar o link dos lances para o grupo"}
       </button>
+      {/* O app só sabe que mostrou o QR; quem confirma as câmeras é o PC, ao ler os vídeos. */}
+      {ok && (
+        <div className="mt-2">
+          <ConferenciaPC jogo={conf.jogo} erro={conf.erro} onAtualizar={conf.atualizar} carregando={conf.carregando} />
+        </div>
+      )}
     </section>
   );
 }

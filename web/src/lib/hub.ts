@@ -64,9 +64,30 @@ export interface ResumoHub {
   clipes: number;
 }
 
+/** O que o PC confirmou de uma câmera ao ler os vídeos. */
+export interface CameraHub {
+  c: number;
+  /** "qr" (o certo), "criacao" (sem QR: pelo horário da câmera, ±2 s) ou "ancora" */
+  metodo: string;
+  /** ± ms no pior trecho */
+  precisao: number;
+  videos: number;
+  lances: number;
+  /** clipes desta câmera que já estão no Drive (os que tocam no hub) */
+  no_drive: number;
+}
+
 export interface JogoHub extends ResumoHub {
   jogadores: JogadorHub[];
   atualizado: number;
+  /** Conferência do PC (jogos publicados antes dela não têm). */
+  cameras?: CameraHub[];
+  /** Lances que viraram clipe em pelo menos uma câmera. */
+  cortados?: number;
+  /** Vídeos deixados de lado por terem o QR de outro jogo. */
+  ignorados?: number;
+  /** Motivo, quando não deu para cortar. */
+  mensagem?: string;
 }
 
 // ------------------------------------------------------------------ leitura
@@ -91,7 +112,7 @@ async function pedir<T>(url: string, init?: RequestInit): Promise<T> {
     } catch {
       /* sem corpo */
     }
-    throw new Error(msg);
+    throw Object.assign(new Error(msg), { status: r.status });
   }
   return (await r.json()) as T;
 }
@@ -139,6 +160,16 @@ export async function abrirJogo(id: string): Promise<JogoHub> {
   const s = doc.fields?.dados?.stringValue;
   if (!s) throw new Error("Jogo não encontrado.");
   return JSON.parse(s) as JogoHub;
+}
+
+/** Como abrirJogo, mas devolve null se o PC ainda não publicou este jogo. */
+export async function buscarJogo(id: string): Promise<JogoHub | null> {
+  try {
+    return await abrirJogo(id);
+  } catch (e) {
+    if ((e as { status?: number }).status === 404 || (e as Error).message === "Jogo não encontrado.") return null;
+    throw e;
+  }
 }
 
 // ------------------------------------------------------------------ pastas por dia e horário

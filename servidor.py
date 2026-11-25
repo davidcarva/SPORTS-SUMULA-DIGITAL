@@ -671,7 +671,9 @@ class Servico:
             if not arq.is_file():
                 continue
             st = arq.stat()
-            marca = f"{st.st_size}:{st.st_mtime}:{e['estado']}:{e.get('entregue', '')}:{e.get('clipes', 0)}"
+            # "c2": o documento ganhou a conferência das câmeras; muda a marca para todo jogo publicar de novo.
+            marca = (f"c2:{st.st_size}:{st.st_mtime}:{e['estado']}:{e.get('entregue', '')}:{e.get('clipes', 0)}:"
+                     f"{e.get('cameras')}:{e.get('mensagem', '')}")
             h = dict(e.get("hub") or {})
             if h.get("erro") and agora - h.get("quando", 0) < 300:
                 continue
@@ -698,7 +700,9 @@ class Servico:
                         continue
                     ids = {}
                 h["espera"] = 0
-                doc = hub.montar_documento(sumula, "pronto" if clipes else e["estado"], clipes, ids)
+                info = ler_json(pasta / "clipes" / "videos.json") if clipes else None
+                doc = hub.montar_documento(sumula, "pronto" if clipes else e["estado"], clipes, ids,
+                                           info if isinstance(info, list) else [], e.get("mensagem", ""))
                 self.hub.publicar(doc)
                 faltam = sum(1 for c in clipes if not ids.get(c.get("vertical") or c.get("arquivo") or ""))
                 if mudou or faltam != h.get("faltam"):

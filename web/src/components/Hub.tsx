@@ -38,6 +38,7 @@ import { ir, useEndereco } from "@/lib/rota";
 import { corQuarto } from "@/lib/tipos";
 import { textoSobre } from "@/lib/cor";
 import { Cartao, Selo } from "./arena";
+import { ConferenciaPC } from "./Conferencia";
 import { Destaque } from "./Destaque";
 import { Folha } from "./Folha";
 import { FundoLados } from "./FundoLados";
@@ -557,15 +558,8 @@ function HubJogo({ id, jogadorInicial }: { id: string; jogadorInicial: string | 
               </button>
             </div>
             {aviso && <p className="text-xs text-muted-foreground">{aviso}</p>}
-            {jogo.estado !== "pronto" && (
-              <Aviso
-                texto={
-                  jogo.estado === "erro"
-                    ? "Ainda não achei o vídeo deste jogo. Os pontos já estão aqui; os vídeos aparecem quando o vídeo certo chegar."
-                    : "Os vídeos ainda estão sendo preparados. Os pontos já estão aqui e os vídeos aparecem sozinhos."
-                }
-              />
-            )}
+            {/* O que o PC confirmou ao ler os vídeos: câmeras, precisão, lances com vídeo. */}
+            <ConferenciaPC jogo={jogo} />
           </header>
 
           <p className="font-display-reta text-[11px] text-muted-foreground">Toque no seu nome para ver os seus lances</p>

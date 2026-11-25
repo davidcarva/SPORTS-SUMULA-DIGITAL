@@ -224,7 +224,8 @@ export default function App() {
     if (fim - inicio >= 500) {
       registrar({ tipo: "sync", t: inicio, t_fim: fim, cameras });
       const ok = fim - inicio >= 3000;
-      const quais = cameras.length > 1 ? `Câmeras ${cameras.join(" e ")} sincronizadas.` : `Câmera ${cameras[0]} sincronizada.`;
+      // O app sabe que mostrou o QR; quem confirma que a câmera filmou é o PC, ao ler o vídeo.
+      const quais = cameras.length > 1 ? `QR mostrado às câmeras ${cameras.join(" e ")}.` : `QR mostrado à câmera ${cameras[0]}.`;
       mostrar({
         texto: ok ? quais : "Muito rápido: segure o QR na frente da câmera por 5 s.",
         cor: ok ? "var(--neon-volt)" : "var(--destructive)",

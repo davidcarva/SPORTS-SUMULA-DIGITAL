@@ -567,22 +567,32 @@ class Gravacao:
     camera: int = 0
 
 
-def numerar_cameras(gravacoes: list[Gravacao]) -> None:
-    """Dá um número de câmera a cada vídeo.
+def numerar_cameras(gravacoes: list[Gravacao]) -> list[str]:
+    """Dá um número de câmera a cada vídeo. Devolve avisos para o log.
 
     1. O QR do app atual diz a câmera (o mesário escolheu no Sincronizar).
-    2. Sem isso (app antigo), vídeos que se sobrepõem no tempo são de câmeras diferentes, e um vídeo
-       que continua outro (a câmera parou e voltou a gravar) é da mesma, se o aparelho bater.
+    2. Sem isso (app antigo, ou o QR de uma câmera não foi lido), vídeos que se sobrepõem no tempo
+       são de câmeras diferentes, e um vídeo que continua outro (a câmera parou e voltou a gravar) é
+       da mesma, se o aparelho bater.
+    3. Dois vídeos com o mesmo número gravando ao mesmo tempo (o mesário esqueceu de trocar para
+       "Câmera 2"): não podem ser a mesma câmera, então o segundo ganha outro número.
     """
     def sobrepoe(a: Gravacao, b: Gravacao) -> bool:
         return min(a.fim_h, b.fim_h) - max(a.ini_h, b.ini_h) > 2000
 
+    avisos: list[str] = []
     grupos: dict[int, list[Gravacao]] = {}
-    for g in gravacoes:
-        if g.sinc.camera:
-            g.camera = g.sinc.camera
-            grupos.setdefault(g.camera, []).append(g)
-    soltas = sorted((g for g in gravacoes if not g.sinc.camera), key=lambda g: g.ini_h)
+    repetidas: list[Gravacao] = []
+    for g in sorted(gravacoes, key=lambda g: g.ini_h):
+        n = g.sinc.camera
+        if not n:
+            continue
+        if any(sobrepoe(g, x) for x in grupos.get(n, [])):
+            repetidas.append(g)
+        else:
+            g.camera = n
+            grupos.setdefault(n, []).append(g)
+    soltas = sorted([*repetidas, *(g for g in gravacoes if not g.sinc.camera)], key=lambda g: g.ini_h)
     novos: list[list[Gravacao]] = []
     for g in soltas:
         for grupo in [*grupos.values(), *novos]:
@@ -598,6 +608,10 @@ def numerar_cameras(gravacoes: list[Gravacao]) -> None:
         n = next(livres)
         for g in grupo:
             g.camera = n
+    for g in repetidas:
+        avisos.append(f"{g.video.name} filmou o QR como câmera {g.sinc.camera}, mas outro vídeo dessa câmera grava "
+                      f"no mesmo horário: virou a câmera {g.camera}.")
+    return avisos
 
 
 def assinatura(*partes) -> str:
@@ -817,7 +831,8 @@ def main() -> None:
     if not gravacoes:
         falhar(de_outro_jogo[0][1] if len(de_outro_jogo) == 1 else
                f"nenhum dos {len(de_outro_jogo)} vídeos é deste jogo ({sumula.id}): o QR filmado é de outro.")
-    numerar_cameras(gravacoes)
+    for aviso in numerar_cameras(gravacoes):
+        print(f"\nATENÇÃO: {aviso}")
     cameras = sorted({g.camera for g in gravacoes})
     varias = len(cameras) > 1
     if varias:
@@ -914,7 +929,8 @@ def main() -> None:
     (pasta / "clipes.json").write_text(json.dumps(clipes, ensure_ascii=False, indent=2), encoding="utf-8")
     # Para o programa do PC: que câmera é cada vídeo, e quais vídeos eram de outro jogo.
     (pasta / "videos.json").write_text(json.dumps(
-        [{"video": str(g.video), "camera": g.camera, "modelo": g.modelo, "metodo": g.sinc.metodo} for g in gravacoes]
+        [{"video": str(g.video), "camera": g.camera, "modelo": g.modelo, "metodo": g.sinc.metodo,
+          "incerteza": round(g.sinc.incerteza), "qr_camera": g.sinc.camera} for g in gravacoes]
         + [{"video": str(v), "outro_jogo": True, "motivo": m} for v, m in de_outro_jogo],
         ensure_ascii=False, indent=2), encoding="utf-8")
 

@@ -89,7 +89,7 @@ export function Placar({ jogo, onSync }: { jogo: Jogo; onSync: () => void }) {
                 {!sync.ok && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />}
                 <span className={`relative inline-flex h-2 w-2 rounded-full ${sync.ok ? "bg-neon-volt" : "bg-destructive"}`} />
               </span>
-              <span className={sync.ok ? "text-neon-volt" : "text-destructive"}>{sync.ok ? "Câmera ok" : "Sem sync"}</span>
+              <span className={sync.ok ? "text-neon-volt" : "text-destructive"}>{sync.ok ? "QR mostrado" : "Sem sync"}</span>
             </button>
           </div>
           <LadoTime jogo={jogo} t="B" pontos={p.B} ganhos={ganhos?.B} />

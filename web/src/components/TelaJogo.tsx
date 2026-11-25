@@ -70,8 +70,9 @@ export function TelaJogo({
             <span className="min-w-0 truncate text-sm">
               {sync.ok && sync.ultima ? (
                 <>
+                  {/* Só o PC confirma que a câmera filmou: aqui é "o QR foi mostrado". */}
                   <b className="font-display text-base text-neon-volt">
-                    {cameras.length > 1 ? `Câmeras ${cameras.join(", ")} ok` : "Câmera ok"}
+                    {cameras.length > 1 ? `QR nas câmeras ${cameras.join(", ")}` : cameras.length ? `QR na câmera ${cameras[0]}` : "QR mostrado"}
                   </b>{" "}
                   · {horaCurta(sync.ultima.t)}
                 </>

@@ -257,6 +257,14 @@ def main() -> None:
             erros.append("[8] os 6 clipes deveriam vir do corte anterior")
         erros += conferir(d / "o8", e7, camera=2)
 
+        print("\n[9] o mesário esqueceu de trocar: as duas câmeras filmaram o QR como câmera 1")
+        c1b = gerar_video(d / "cam1b.mp4", [(3, 9)], prefixo="SDK1", inicio_ms=BASE + 4000)
+        out = rodar(d / "s7.json", [c1, c1b], d / "o9", [])
+        clipes9 = json.loads((d / "o9" / "clipes.json").read_text(encoding="utf-8"))
+        if sorted({c["camera"] for c in clipes9}) != [1, 2] or "virou a câmera 2" not in out:
+            erros.append("[9] dois vídeos ao mesmo tempo com o mesmo número deveriam virar câmeras 1 e 2, com aviso")
+        erros += conferir(d / "o9", e7, camera=2)
+
         print("\n[5] súmula de outro jogo")
         sumula(d / "s5.json", [25.0], [(3, 9)], id_jogo="outro9")
         out = rodar(d / "s5.json", v1, d / "o5", [], deve_falhar=True)

@@ -61,7 +61,29 @@ def _sets(sumula: corte.Sumula, encerrado: bool) -> dict[str, int] | None:
     return ganhos
 
 
-def montar_documento(sumula: corte.Sumula, estado: str, clipes: list[dict], ids: dict[str, str]) -> dict:
+def conferencia(info: list[dict], clipes: list[dict], ids: dict[str, str]) -> list[dict]:
+    """O que o PC confirmou de cada câmera ao ler os vídeos: como sincronizou, com que precisão,
+    quantos lances ela pegou e quantos já estão no Drive."""
+    cams: dict[int, dict] = {}
+    for x in info:
+        if x.get("outro_jogo") or not x.get("camera"):
+            continue
+        c = cams.setdefault(x["camera"], {"c": x["camera"], "metodo": x.get("metodo", "qr"), "precisao": 0,
+                                          "videos": 0, "lances": 0, "no_drive": 0})
+        c["videos"] += 1
+        c["precisao"] = max(c["precisao"], int(x.get("incerteza") or 0))
+        if x.get("metodo") != "qr":  # o pior método da câmera é o que vale
+            c["metodo"] = x.get("metodo", c["metodo"])
+    for k in clipes:
+        c = cams.get(k.get("camera") or 1)
+        if c:
+            c["lances"] += 1
+            c["no_drive"] += bool(ids.get(k.get("vertical") or "") or ids.get(k.get("arquivo") or ""))
+    return [cams[n] for n in sorted(cams)]
+
+
+def montar_documento(sumula: corte.Sumula, estado: str, clipes: list[dict], ids: dict[str, str],
+                     info: list[dict] | None = None, mensagem: str = "") -> dict:
     """O jogo como o hub mostra: placar, cada jogador com os lances e o id do clipe de cada lance."""
     d = sumula.dados
     jogo = d["jogo"]
@@ -133,6 +155,11 @@ def montar_documento(sumula: corte.Sumula, estado: str, clipes: list[dict], ids:
         "lances": len(lances),
         "clipes": com_clipe,
         "jogadores": lista,
+        # A conferência do PC: o que ele achou nos vídeos (o app do mesário e o hub mostram).
+        "cameras": conferencia(info or [], clipes, ids),
+        "cortados": len({c["evento"] for c in clipes} & {e["id"] for e in lances}),
+        "ignorados": sum(1 for x in info or [] if x.get("outro_jogo")),
+        "mensagem": mensagem,
         "atualizado": int(time.time() * 1000),
     }
 
