@@ -8,18 +8,20 @@ import qrcode from "qrcode-generator";
 export const QR_PASSO_MS = 100;
 
 /**
- * Conteúdo do QR: "SDH2:<ID>:<ms em base 36>", tudo em maiúsculas.
+ * Conteúdo do QR: "SDK<câmera>:<ID>:<ms em base 36>", tudo em maiúsculas. O número diz qual
+ * câmera está filmando (1 a 9), para o PC separar os ângulos. Tem o mesmo tamanho do formato
+ * de antes ("SDH2:…", sem câmera, que o PC ainda lê).
  * Com só letras maiúsculas, números e ":", o QR usa o modo alfanumérico e cabe na
  * versão 1 (21×21 módulos). Módulos maiores = a câmera lê de mais longe e com menos luz.
  */
-export function conteudoSync(idJogo: string, ms: number): string {
-  return `SDH2:${idJogo.toUpperCase()}:${ms.toString(36).toUpperCase()}`;
+export function conteudoSync(idJogo: string, ms: number, camera = 1): string {
+  return `SDK${camera}:${idJogo.toUpperCase()}:${ms.toString(36).toUpperCase()}`;
 }
 
-export function lerConteudoSync(texto: string): { id: string; ms: number } | null {
-  const m = /^SDH2:([A-Z0-9]+):([A-Z0-9]+)$/i.exec(texto.trim());
+export function lerConteudoSync(texto: string): { id: string; ms: number; camera: number | null } | null {
+  const m = /^SD(?:H2|K([1-9])):([A-Z0-9]+):([A-Z0-9]+)$/i.exec(texto.trim());
   if (!m) return null;
-  return { id: m[1].toLowerCase(), ms: parseInt(m[2], 36) };
+  return { id: m[2].toLowerCase(), ms: parseInt(m[3], 36), camera: m[1] ? Number(m[1]) : null };
 }
 
 export function quantizar(ms: number): number {

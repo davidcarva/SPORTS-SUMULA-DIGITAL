@@ -129,6 +129,27 @@ def livre(p: Path) -> Path:
     return alvo
 
 
+def espelhar(origem: Path, destino: Path) -> None:
+    """Deixa `destino` igual a `origem` mexendo só no que mudou. No Drive, clipe que não mudou continua
+    o mesmo arquivo (mesmo link no hub) e não sobe de novo."""
+    # videos.json fica só no PC: tem os caminhos locais dos vídeos, e Cortes é aberta por link.
+    novos = {p.relative_to(origem) for p in origem.rglob("*") if p.is_file() and p.name != "videos.json"}
+    for p in sorted(destino.rglob("*"), key=lambda x: len(x.parts), reverse=True):
+        rel = p.relative_to(destino)
+        if p.is_file() and rel not in novos and p.name.lower() != "desktop.ini":
+            p.unlink()
+        elif p.is_dir() and not any(x.name.lower() != "desktop.ini" for x in p.iterdir()):
+            shutil.rmtree(p, ignore_errors=True)
+    for rel in sorted(novos):
+        de, para = origem / rel, destino / rel
+        if para.is_file():
+            a, b = de.stat(), para.stat()
+            if a.st_size == b.st_size and abs(a.st_mtime - b.st_mtime) < 2:
+                continue
+        para.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(de, para)
+
+
 def ler_json(p: Path) -> dict | None:
     try:
         return json.loads(p.read_text(encoding="utf-8-sig"))
@@ -170,6 +191,8 @@ class Servico:
         self.vapid_publica = self._carregar_vapid()
         self.vistos: dict[Path, tuple[int, float, float]] = {}
         self.info: dict[tuple[str, int, float], tuple[float | None, float] | None] = {}
+        # Vídeo solto já conferido contra cada jogo pronto (id, versão da súmula): não confere de novo.
+        self.conferidos: dict[tuple[str, int, float], set[tuple[str, float]]] = {}
         self.hub = hub.Hub.abrir(RAIZ)
         for e in self.banco.todos():  # o PC reiniciou no meio de um corte
             if e["estado"] == "cortando":
@@ -364,16 +387,42 @@ class Servico:
         # Arquivo sem horário de gravação: só arrisca se não houver dúvida de jogo. O QR ainda confere.
         return sorted(sem_horario, key=lambda v: (v.stat().st_mtime, str(v))) if unico_pendente else []
 
-    def cortar_jogo(self, id_jogo: str, videos: list[Path]) -> None:
+    def cameras_novas(self, e: dict, arquivos: list[Path]) -> list[Path]:
+        """Vídeos que chegaram depois do corte e caem no horário deste jogo: outra câmera (ou o
+        resto da gravação). Cada vídeo é conferido uma vez por versão da súmula."""
+        arq = self.banco.dir(e["id"]) / "sumula.json"
+        versao = (e["id"], arq.stat().st_mtime)
+        soltos = []
+        for v in arquivos:
+            if self.chave_video(v) in e["videos"]:
+                continue
+            st = v.stat()
+            vistos = self.conferidos.setdefault((str(v), st.st_size, st.st_mtime), set())
+            if versao not in vistos:
+                vistos.add(versao)
+                soltos.append(v)
+        if not soltos:
+            return []
+        return [v for v in self.candidatos(e, soltos, unico_pendente=False) if self.chave_video(v) not in e["videos"]]
+
+    def cortar_jogo(self, id_jogo: str, videos: list[Path], antes: dict | None = None) -> None:
+        """Corta (ou recorta) o jogo com estes vídeos. Clipe que não mudou vem do corte anterior,
+        sem recodificar. `antes`: o jogo já estava pronto e chegou outra câmera; se o vídeo novo não
+        servir, o jogo volta a ser como era."""
         nomes = [self.chave_video(v) for v in videos]
         pasta = self.banco.dir(id_jogo)
         sumula = corte.Sumula.ler(pasta / "sumula.json")
         total = len(sumula.eventos(corte.TIPOS_COM_CLIPE))
+        if antes:
+            novos = [n for n in nomes if n not in antes["videos"]]
+            print(f"Vídeo novo para {antes['confronto']} (outra câmera?): {', '.join(novos)}")
         print(f"Cortando {id_jogo}: {', '.join(nomes)}")
         self.banco.mudar(id_jogo, estado="cortando", mensagem="", videos=nomes, feitos=0, total=total)
-        saida = pasta / "clipes"
-        shutil.rmtree(saida, ignore_errors=True)
-        cmd = [sys.executable, str(RAIZ / "cortar.py"), str(pasta / "sumula.json"), *map(str, videos), "--saida", str(saida)]
+        saida, nova = pasta / "clipes", pasta / "clipes.novo"
+        shutil.rmtree(nova, ignore_errors=True)
+        cmd = [sys.executable, str(RAIZ / "cortar.py"), str(pasta / "sumula.json"), *map(str, videos), "--saida", str(nova)]
+        if (saida / "clipes.json").is_file():
+            cmd += ["--reaproveitar", str(saida)]
         ambiente = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
         erro, avisos = "", []
         with open(pasta / "corte.log", "w", encoding="utf-8") as log:
@@ -391,22 +440,48 @@ class Servico:
                 elif "ficaram fora do vídeo" in linha:
                     avisos.append(linha.strip().rstrip(":") + ".")
             codigo = p.wait()
-        clipes = len(list(saida.glob("*.mp4"))) if saida.is_dir() else 0
+        lista = ler_json(nova / "clipes.json") if codigo == 0 else None
+        clipes = len(lista) if isinstance(lista, list) else 0
+        info = ler_json(nova / "videos.json") if codigo == 0 else None
+        info = info if isinstance(info, list) else []
 
         e = self.banco.ler(id_jogo)
         if e.get("recortar"):
+            shutil.rmtree(nova, ignore_errors=True)
             e.pop("recortar")
             e.update(estado="aguardando_video", feitos=0, tentados=[])
             self.banco.gravar(e)
             return
+        if antes and not (codigo == 0 and clipes):
+            # A câmera nova não serviu (outro jogo, sem QR…): o jogo continua como estava.
+            shutil.rmtree(nova, ignore_errors=True)
+            novos = [n for n in nomes if n not in antes["videos"]]
+            self.banco.mudar(id_jogo, **{k: antes.get(k) for k in ("estado", "mensagem", "videos", "feitos", "total")},
+                             tentados=[*antes["tentados"], *novos])
+            print(f"  não serviu para {antes['confronto']}: {erro or 'nenhum lance neste vídeo'}")
+            return
         destino = self.pasta_jogo(e, sumula) / "Cortes"
         e = self.banco.ler(id_jogo)
         if codigo == 0 and clipes:
+            shutil.rmtree(saida, ignore_errors=True)
+            nova.rename(saida)
+            # Que câmera é cada vídeo; vídeo com QR de outro jogo não é deste (fica na entrada).
+            usados = [x for x in info if not x.get("outro_jogo")]
+            outros = [self.chave_video(Path(x["video"])) for x in info if x.get("outro_jogo")]
+            videos_ok = [self.chave_video(Path(x["video"])) for x in usados] or [n for n in nomes if n not in outros]
+            cameras = [x.get("camera") for x in usados] if usados else []
             self.entregar(e, destino, origem=saida, aviso=" ".join(avisos))  # "pronto" só com os clipes no lugar
-            e = self.banco.mudar(id_jogo, estado="pronto", clipes=clipes, feitos=clipes, mensagem=" ".join(avisos))
+            e = self.banco.mudar(id_jogo, estado="pronto", clipes=clipes, feitos=clipes, mensagem=" ".join(avisos),
+                                 videos=videos_ok, cameras=cameras, tentados=[*e["tentados"], *outros])
             self.avisar(e, "Cortes prontos", f"{e['confronto']}: {clipes} clipes.", self.url_clipes(id_jogo))
-            print(f"Pronto: {e['confronto']}, {clipes} clipes em {destino}")
+            n_cam = len(set(cameras))
+            print(f"Pronto: {e['confronto']}, {clipes} clipes" + (f" de {n_cam} câmeras" if n_cam > 1 else "")
+                  + f" em {destino}")
+            if outros:
+                print(f"  deixei de lado (QR de outro jogo): {', '.join(outros)}")
         else:
+            shutil.rmtree(nova, ignore_errors=True)
+            shutil.rmtree(saida, ignore_errors=True)
             motivo = erro or "Nenhum lance da súmula aparece neste vídeo."
             e = self.banco.mudar(id_jogo, estado="erro", mensagem=motivo, tentados=[*e["tentados"], *nomes])
             self.entregar(e, destino, erro=f"{motivo}\n\nVídeo usado: {', '.join(nomes)}\n"
@@ -487,11 +562,22 @@ class Servico:
         if e["estado"] != "pronto":  # sem corte, não dá para ter certeza de que o vídeo é deste jogo
             return
         videos = []
+        cams = list(e.get("cameras") or [])
+        cams += [None] * (len(e["videos"]) - len(cams))
+        varias = len(set(cams) - {None}) > 1
         for i, rel in enumerate(e["videos"]):
             v = self.videos / rel
-            if v.parent != pasta and v.is_file():
-                parte = f" (parte {i + 1})" if len(e["videos"]) > 1 else ""
-                v = self.mover(v, pasta / f"Vídeo - {titulo}{parte}{v.suffix.lower()}")
+            # "Vídeo - <jogo>.mp4"; com várias câmeras, "Vídeo - <jogo> - Câmera 2.mp4"; e "(parte 2)" se
+            # a mesma câmera parou e voltou a gravar.
+            mesma = [j for j, c in enumerate(cams) if c == cams[i]] if varias else list(range(len(cams)))
+            parte = f" (parte {mesma.index(i) + 1})" if len(mesma) > 1 else ""
+            camera = f" - Câmera {cams[i]}" if varias and cams[i] else ""
+            nome = f"Vídeo - {titulo}{camera}{parte}{v.suffix.lower()}"
+            if v.is_file() and v.parent != pasta:
+                v = self.mover(v, pasta / nome)
+                print(f"Organizado: {rel} → {v.relative_to(self.videos)}")
+            elif v.is_file() and v.name != nome and not (pasta / nome).exists():
+                v = self.mover(v, pasta / nome)  # chegou outra câmera: o vídeo antigo ganha o número dele
                 print(f"Organizado: {rel} → {v.relative_to(self.videos)}")
             videos.append(self.chave_video(v))
         if videos != e["videos"]:
@@ -543,15 +629,14 @@ class Servico:
                     antiga.parent == self.legado or (antiga.name == "Cortes" and self.entrega in antiga.parents)):
                 shutil.rmtree(antiga)
             destino.mkdir(parents=True, exist_ok=True)
-            for x in destino.iterdir():
-                if x.name.lower() != "desktop.ini":
-                    shutil.rmtree(x) if x.is_dir() else x.unlink()
             if origem:
-                shutil.copytree(origem, destino, dirs_exist_ok=True)
+                espelhar(origem, destino)
                 if aviso:
                     (destino / "AVISO.txt").write_text(aviso + "\n", encoding="utf-8")
             else:
-                destino.mkdir(parents=True, exist_ok=True)
+                for x in destino.iterdir():
+                    if x.name.lower() != "desktop.ini":
+                        shutil.rmtree(x) if x.is_dir() else x.unlink()
                 (destino / "NAO_CONSEGUI_CORTAR.txt").write_text(erro, encoding="utf-8")
             self.banco.mudar(e["id"], entregue=str(destino))
         except OSError as falha:  # pasta do Drive indisponível: os clipes continuam em servidor_dados
@@ -599,8 +684,10 @@ class Servico:
                     continue
             try:
                 sumula = corte.Sumula.ler(arq)
+                # Durante um recorte (câmera nova, súmula corrigida) os clipes de antes continuam valendo:
+                # o corte novo vai para outra pasta até terminar.
                 lista = pasta / "clipes" / "clipes.json"
-                clipes = json.loads(lista.read_text(encoding="utf-8")) if e["estado"] == "pronto" and lista.is_file() else []
+                clipes = json.loads(lista.read_text(encoding="utf-8")) if lista.is_file() else []
                 ids = self.ids_drive(Path(e["entregue"]), h) if clipes and e.get("entregue") else {}
                 if ids is None:
                     if h.get("marca"):
@@ -611,7 +698,7 @@ class Servico:
                         continue
                     ids = {}
                 h["espera"] = 0
-                doc = hub.montar_documento(sumula, e["estado"], clipes, ids)
+                doc = hub.montar_documento(sumula, "pronto" if clipes else e["estado"], clipes, ids)
                 self.hub.publicar(doc)
                 faltam = sum(1 for c in clipes if not ids.get(c.get("vertical") or c.get("arquivo") or ""))
                 if mudou or faltam != h.get("faltam"):
@@ -634,11 +721,21 @@ class Servico:
         arquivos, copiando = self.videos_prontos()
         if copiando:  # espera a cópia acabar, para pegar todas as partes do jogo juntas
             return
-        pendentes = [e for e in self.banco.todos() if e["estado"] in ("aguardando_video", "erro")]
+        todos = self.banco.todos()
+        pendentes = [e for e in todos if e["estado"] in ("aguardando_video", "erro")]
         for e in pendentes:
             achados = self.candidatos(e, arquivos, len(pendentes) == 1)
             if achados:
                 self.cortar_jogo(e["id"], achados)
+                return
+        # Jogo já cortado que ganhou vídeo novo no mesmo horário: outra câmera (ou o resto da gravação).
+        reclamados = {v for e in todos for v in e["videos"]}
+        soltos = [v for v in arquivos if self.chave_video(v) not in reclamados]
+        for e in (x for x in todos if x["estado"] == "pronto") if soltos else ():
+            novos = self.cameras_novas(e, soltos)
+            if novos:
+                atuais = [self.videos / v for v in e["videos"] if (self.videos / v).is_file()]
+                self.cortar_jogo(e["id"], [*atuais, *novos], antes=e)
                 return
 
     def vigiar(self) -> None:

@@ -41,6 +41,7 @@ export function TelaJogo({
   const inicio = ativos(jogo).find((e) => e.tipo === "inicio");
   const per = periodoAtual(jogo);
   const sync = estadoSync(jogo);
+  const cameras = [...new Set(sync.feitas.flatMap((e) => e.cameras ?? []))].sort((a, b) => a - b);
   const encerrado = !!jogo.jogo.encerrado_em;
 
   return (
@@ -69,7 +70,10 @@ export function TelaJogo({
             <span className="min-w-0 truncate text-sm">
               {sync.ok && sync.ultima ? (
                 <>
-                  <b className="font-display text-base text-neon-volt">Câmera ok</b> · {horaCurta(sync.ultima.t)}
+                  <b className="font-display text-base text-neon-volt">
+                    {cameras.length > 1 ? `Câmeras ${cameras.join(", ")} ok` : "Câmera ok"}
+                  </b>{" "}
+                  · {horaCurta(sync.ultima.t)}
                 </>
               ) : (
                 <>

@@ -67,7 +67,9 @@ def montar_documento(sumula: corte.Sumula, estado: str, clipes: list[dict], ids:
     jogo = d["jogo"]
     eventos = sumula.eventos()
     lances = sumula.eventos(corte.TIPOS_COM_CLIPE)
-    por_evento = {c["evento"]: c for c in clipes}
+    por_evento: dict[str, list[dict]] = {}  # um clipe por câmera que filmou o lance
+    for c in sorted(clipes, key=lambda c: c.get("camera") or 1):
+        por_evento.setdefault(c["evento"], []).append(c)
     marcos = [e["t"] for e in eventos if e["tipo"] not in ("sync",)]
     inicio = next((e["t"] for e in eventos if e["tipo"] == "inicio"), min(marcos, default=jogo.get("criado_em", 0)))
     fim = jogo.get("encerrado_em") or max(marcos, default=inicio)
@@ -90,7 +92,11 @@ def montar_documento(sumula: corte.Sumula, estado: str, clipes: list[dict], ids:
         if e["tipo"] == "ponto":
             placar[t] += valor
             jogadores[chave]["pontos"] += valor
-        c = por_evento.get(e["id"], {})
+        angulos = [{"c": c.get("camera") or 1,
+                    "v": ids.get(c.get("vertical") or "") or None,
+                    "o": ids.get(c.get("arquivo") or "") or None} for c in por_evento.get(e["id"], [])]
+        angulos = [x for x in angulos if x["v"] or x["o"]] or angulos
+        c = angulos[0] if angulos else {}
         jogadores[chave]["lances"].append({
             "id": e["id"],
             "oque": oque,
@@ -99,9 +105,11 @@ def montar_documento(sumula: corte.Sumula, estado: str, clipes: list[dict], ids:
             "p": int(e.get("periodo", 1)),
             "hora": sumula.hora(e["t"])[:5],
             "t": e["t"],
-            # ids dos arquivos no Drive (vertical com a tarja e o original); None enquanto não sobem
-            "v": ids.get(c.get("vertical") or "") or None,
-            "o": ids.get(c.get("arquivo") or "") or None,
+            # ids dos arquivos no Drive (vertical com a tarja e o original) da primeira câmera; None
+            # enquanto não sobem. "a": cada câmera que filmou o lance (só com mais de uma).
+            "v": c.get("v"),
+            "o": c.get("o"),
+            **({"a": angulos} if len(angulos) > 1 else {}),
         })
 
     lista = sorted(jogadores.values(), key=lambda j: (j["time"], -j["pontos"], -len(j["lances"]),

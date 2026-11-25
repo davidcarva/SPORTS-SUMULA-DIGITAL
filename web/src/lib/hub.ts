@@ -26,6 +26,14 @@ export interface LanceHub {
   /** id no Drive do clipe vertical (com a tarja) e do original; null enquanto não subiu */
   v: string | null;
   o: string | null;
+  /** Só quando mais de uma câmera filmou o lance: o clipe de cada uma (c = número da câmera). */
+  a?: AnguloHub[];
+}
+
+export interface AnguloHub {
+  c: number;
+  v: string | null;
+  o: string | null;
 }
 
 export interface JogadorHub {

@@ -219,13 +219,14 @@ export default function App() {
     mostrar({ texto: "Lance corrigido. O clipe sai com o novo atleta.", cor: "var(--neon-volt)" });
   };
 
-  const fimDoSync = (inicio: number, fim: number) => {
+  const fimDoSync = (inicio: number, fim: number, cameras: number[]) => {
     setSync(false);
     if (fim - inicio >= 500) {
-      registrar({ tipo: "sync", t: inicio, t_fim: fim });
+      registrar({ tipo: "sync", t: inicio, t_fim: fim, cameras });
       const ok = fim - inicio >= 3000;
+      const quais = cameras.length > 1 ? `Câmeras ${cameras.join(" e ")} sincronizadas.` : `Câmera ${cameras[0]} sincronizada.`;
       mostrar({
-        texto: ok ? "Câmera sincronizada." : "Muito rápido: segure o QR na frente da câmera por 5 s.",
+        texto: ok ? quais : "Muito rápido: segure o QR na frente da câmera por 5 s.",
         cor: ok ? "var(--neon-volt)" : "var(--destructive)",
       });
     }

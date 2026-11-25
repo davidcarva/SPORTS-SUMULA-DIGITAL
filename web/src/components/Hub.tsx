@@ -12,6 +12,7 @@ import {
   RectangleVertical,
   RefreshCw,
   Share2,
+  Video,
   Volleyball,
 } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
@@ -291,9 +292,14 @@ function FolhaJogador({ jogo, jogador, inicial, onFechar }: { jogo: JogoHub; jog
   const [i, setI] = useState(inicial);
   const [aviso, setAviso] = useState("");
   const [formato, setFormato] = useState<Formato>(formatoSalvo);
+  // A câmera escolhida vale para todos os lances; lance que ela não filmou mostra a primeira.
+  const [camera, setCamera] = useState<number | null>(null);
   useEffect(() => setI(inicial), [inicial, jogador?.id]);
   const time = jogador ? jogo.times[jogador.time] : null;
-  const l = jogador?.lances[i];
+  const lance = jogador?.lances[i];
+  const angulos = lance?.a ?? [];
+  const angulo = angulos.find((x) => x.c === camera) ?? angulos[0];
+  const l = lance && angulo ? { ...lance, v: angulo.v, o: angulo.o } : lance;
   const n = jogador?.lances.length ?? 0;
   const tem: Record<Formato, boolean> = { vertical: !!l?.v, horizontal: !!l?.o };
   // Se o formato escolhido ainda não subiu para este lance, mostra o outro em vez de nada.
@@ -349,6 +355,34 @@ function FolhaJogador({ jogo, jogador, inicial, onFechar }: { jogo: JogoHub; jog
               );
             })}
           </div>
+
+          {/* Mais de uma câmera filmou este lance: um botão por ângulo. */}
+          {angulos.length > 1 && angulo && (
+            <div
+              className="grid gap-1 bg-secondary p-1 chanfro chanfro-sm"
+              style={{ gridTemplateColumns: `repeat(${angulos.length}, minmax(0, 1fr))` }}
+              role="radiogroup"
+              aria-label="Câmera"
+            >
+              {angulos.map((x) => {
+                const ativo = x.c === angulo.c;
+                return (
+                  <button
+                    key={x.c}
+                    type="button"
+                    role="radio"
+                    aria-checked={ativo}
+                    onClick={() => setCamera(x.c)}
+                    className={`chanfro chanfro-sm flex h-9 items-center justify-center gap-1.5 font-display-reta text-xs transition-colors ${
+                      ativo ? "bg-foreground text-background" : "text-muted-foreground"
+                    }`}
+                  >
+                    <Video className="h-4 w-4" /> Ângulo {x.c}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* O vídeo do lance pelo player do Drive: vertical com a tarja ou o horizontal como foi filmado. */}
           <div

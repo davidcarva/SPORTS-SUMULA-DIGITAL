@@ -124,10 +124,14 @@ describe("sincronização", () => {
 
   it("o QR cabe na versão 1 (21×21) e volta ao mesmo horário", () => {
     const ms = quantizar(Date.UTC(2059, 0, 1) - 1); // pior caso de tamanho até 2059
-    const texto = conteudoSync("k3x9pq", ms);
-    expect(texto).toMatch(/^SDH2:K3X9PQ:[0-9A-Z]+$/);
+    const texto = conteudoSync("k3x9pq", ms, 2);
+    expect(texto).toMatch(/^SDK2:K3X9PQ:[0-9A-Z]+$/);
     expect(matrizQR(texto).tamanho).toBe(21);
-    expect(lerConteudoSync(texto)).toEqual({ id: "k3x9pq", ms });
+    expect(lerConteudoSync(texto)).toEqual({ id: "k3x9pq", ms, camera: 2 });
+  });
+
+  it("ainda lê o QR de antes, sem câmera", () => {
+    expect(lerConteudoSync("SDH2:K3X9PQ:ABC")).toEqual({ id: "k3x9pq", ms: parseInt("ABC", 36), camera: null });
   });
 
   it("quantiza o horário no início de cada janela de 100 ms", () => {

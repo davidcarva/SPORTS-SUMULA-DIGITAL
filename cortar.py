@@ -26,16 +26,20 @@ import shutil
 import statistics
 import subprocess
 import sys
+import hashlib
 import unicodedata
-from dataclasses import dataclass, field
+from collections import Counter
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 FORMATOS = {"sumula-highlights/1", "sumula-highlights/2"}
 # Passo do QR de sincronização: o valor V aparece na tela de V até V + passo.
 #   SDH1|<id>|<ms>        → app antigo, redesenha a cada 200 ms
-#   SDH2:<ID>:<ms base36> → app atual (web/src/lib/qr.ts), quantizado em 100 ms
-QR_PASSO_MS = {"SDH1": 200, "SDH2": 100}
+#   SDH2:<ID>:<ms base36> → app de antes das várias câmeras, quantizado em 100 ms
+#   SDK<n>:<ID>:<ms base36> → app atual (web/src/lib/qr.ts): o mesmo, e diz que é a câmera n
+QR_PASSO_MS = {"SDH1": 200, "SDH2": 100, "SDK": 100}
+QR_CAMERA = re.compile(r"SDK([1-9]):([A-Za-z0-9]+):([A-Za-z0-9]+)")
 TIPOS_COM_CLIPE = {"ponto", "lance"}
 
 import formato_vertical as vertical  # noqa: E402  (render 9:16 vindo do programa Cortes)
@@ -201,6 +205,7 @@ class Sinc:
     metodo: str
     detalhes: list[str] = field(default_factory=list)
     incerteza: float = 0.0  # ± ms no pior trecho
+    camera: int | None = None  # a câmera que o QR disse ser (None: QR antigo, sem QR ou âncora)
 
     def deslocamento(self, pts: float) -> float:
         """Deslocamento (ms) no tempo pts do vídeo; interpola entre pontos de sincronização."""
@@ -231,22 +236,28 @@ class Leitura:
     ms: int        # horário mostrado no QR (ms, relógio da súmula)
     jogo: str      # id do jogo no QR
     passo: int     # passo do QR (ms)
+    camera: int | None = None  # número da câmera escolhido no app (QR SDK<n>); None no app antigo
 
 
-def interpretar_qr(texto: str) -> tuple[str, int, int] | None:
-    """(id do jogo, horário em ms, passo em ms) ou None se não for QR de sincronização."""
+def interpretar_qr(texto: str) -> tuple[str, int, int, int | None] | None:
+    """(id do jogo, horário em ms, passo em ms, câmera) ou None se não for QR de sincronização."""
     texto = texto.strip()
+    if m := QR_CAMERA.fullmatch(texto):
+        try:
+            return m[2].lower(), int(m[3], 36), QR_PASSO_MS["SDK"], int(m[1])
+        except ValueError:
+            return None
     if texto.startswith("SDH2:"):
         partes = texto.split(":")
         if len(partes) == 3 and partes[1].isalnum() and partes[2].isalnum():
             try:
-                return partes[1].lower(), int(partes[2], 36), QR_PASSO_MS["SDH2"]
+                return partes[1].lower(), int(partes[2], 36), QR_PASSO_MS["SDH2"], None
             except ValueError:
                 return None
     if texto.startswith("SDH1|"):
         partes = texto.split("|")
         if len(partes) == 3 and partes[2].isdigit():
-            return partes[1].lower(), int(partes[2]), QR_PASSO_MS["SDH1"]
+            return partes[1].lower(), int(partes[2]), QR_PASSO_MS["SDH1"], None
     return None
 
 
@@ -261,7 +272,7 @@ class LeitorQR:
         if hasattr(cv2, "QRCodeDetectorAruco"):
             self.detectores.append(cv2.QRCodeDetectorAruco())
 
-    def ler(self, quadro) -> tuple[str, int, int] | None:
+    def ler(self, quadro) -> tuple[str, int, int, int | None] | None:
         cv2 = self.cv2
         cinza = cv2.cvtColor(quadro, cv2.COLOR_BGR2GRAY) if quadro.ndim == 3 else quadro
         tentativas = [cinza]
@@ -310,7 +321,7 @@ def ler_qrs(video: Path, janelas: list[tuple[float, float]], passo: int) -> list
                 continue
             r = leitor.ler(quadro)
             if r:
-                achados.append(Leitura(pts, r[1], r[0], r[2]))
+                achados.append(Leitura(pts, r[1], r[0], r[2], r[3]))
     cap.release()
     return achados
 
@@ -461,8 +472,8 @@ def sincronizar_qr(video: Path, sumula: Sumula, dur: float, varrer: float, tudo:
     outros = {a.jogo for a in achados if a.jogo != sumula.id}
     achados = [a for a in achados if a.jogo == sumula.id]
     if not achados:
-        falhar(f"o vídeo tem QR de outro jogo ({', '.join(sorted(outros))}), não de {sumula.id}. "
-               "Confira se escolheu a súmula certa.")
+        raise OutroJogo(f"o vídeo tem QR de outro jogo ({', '.join(sorted(outros))}), não de {sumula.id}. "
+                        "Confira se escolheu a súmula certa.")
 
     trechos = [estimar(g) for g in agrupar(achados) if len(g) >= MIN_LEITURAS]
     if not trechos:
@@ -488,7 +499,15 @@ def sincronizar_qr(video: Path, sumula: Sumula, dur: float, varrer: float, tudo:
         detalhes.append("1 trecho de QR: suficiente para os clipes.")
     s = Sinc([(t.pts, t.desloc) for t in trechos], "qr", detalhes)
     s.incerteza = max(t.incerteza for t in trechos)
+    cameras = Counter(a.camera for a in achados if a.camera)
+    if cameras:
+        s.camera = cameras.most_common(1)[0][0]
+        detalhes.append(f"o QR diz: câmera {s.camera}")
     return s
+
+
+class OutroJogo(Exception):
+    """O vídeo tem o QR de outro jogo: nunca vira clipe deste."""
 
 
 METODOS = {"qr": "QR", "ancora": "âncora manual", "criacao": "horário da câmera, SEM QR"}
@@ -520,6 +539,70 @@ def sincronizar_criacao(video: Path, sumula: Sumula, dur: float) -> Sinc | None:
         f"ATENÇÃO: precisão de ~±{INCERTEZA_CRIACAO_MS / 1000:.0f} s. Os clipes foram alargados para não perder a "
         "jogada. Confira alguns na galeria e, no próximo jogo, filme o QR.",
     ], incerteza=INCERTEZA_CRIACAO_MS)
+
+
+def modelo_camera(video: Path) -> str | None:
+    """O aparelho que gravou, quando o arquivo diz (Android: com.android.model; iPhone:
+    com.apple.quicktime.model). Separa duas câmeras de app antigo, cujo QR não traz o número."""
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format_tags", "-of", "json", str(video)],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    try:
+        tags = json.loads(r.stdout or "{}").get("format", {}).get("tags", {})
+    except ValueError:
+        return None
+    for chave, valor in tags.items():
+        if chave.lower().endswith("model") and str(valor).strip():
+            return str(valor).strip()
+    return None
+
+
+@dataclass
+class Gravacao:
+    video: Path
+    sinc: Sinc
+    dur: float
+    ini_h: float   # horário da súmula (ms) no começo do vídeo
+    fim_h: float
+    modelo: str | None
+    camera: int = 0
+
+
+def numerar_cameras(gravacoes: list[Gravacao]) -> None:
+    """Dá um número de câmera a cada vídeo.
+
+    1. O QR do app atual diz a câmera (o mesário escolheu no Sincronizar).
+    2. Sem isso (app antigo), vídeos que se sobrepõem no tempo são de câmeras diferentes, e um vídeo
+       que continua outro (a câmera parou e voltou a gravar) é da mesma, se o aparelho bater.
+    """
+    def sobrepoe(a: Gravacao, b: Gravacao) -> bool:
+        return min(a.fim_h, b.fim_h) - max(a.ini_h, b.ini_h) > 2000
+
+    grupos: dict[int, list[Gravacao]] = {}
+    for g in gravacoes:
+        if g.sinc.camera:
+            g.camera = g.sinc.camera
+            grupos.setdefault(g.camera, []).append(g)
+    soltas = sorted((g for g in gravacoes if not g.sinc.camera), key=lambda g: g.ini_h)
+    novos: list[list[Gravacao]] = []
+    for g in soltas:
+        for grupo in [*grupos.values(), *novos]:
+            modelos = {x.modelo for x in grupo} - {None}
+            if not any(sobrepoe(g, x) for x in grupo) and (g.modelo is None or not modelos or g.modelo in modelos):
+                grupo.append(g)
+                g.camera = grupo[0].camera
+                break
+        else:
+            novos.append([g])
+    livres = (n for n in range(1, 100) if n not in grupos)
+    for grupo in novos:
+        n = next(livres)
+        for g in grupo:
+            g.camera = n
+
+
+def assinatura(*partes) -> str:
+    """Resume tudo o que define um clipe: se nada mudou, o arquivo antigo serve (não corta de novo)."""
+    return hashlib.sha1(json.dumps(partes, ensure_ascii=False, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
 def sincronizar_ancora(sumula: Sumula, ancora: float) -> Sinc:
@@ -587,6 +670,7 @@ As marcações ficam salvas neste navegador; use "Exportar avaliação" para gua
 <script>
 const DADOS = __DADOS__;
 const CHAVE = "highlights-aval:" + DADOS.jogo_id;
+const VARIAS = new Set(DADOS.clipes.map((c) => c.camera)).size > 1;
 let aval = {};
 try { aval = JSON.parse(localStorage.getItem(CHAVE) || "{}"); } catch (e) {}
 const salvar = () => { try { localStorage.setItem(CHAVE, JSON.stringify(aval)); } catch (e) {} };
@@ -628,7 +712,7 @@ function lista() {
   document.getElementById("lista").innerHTML = `<div class="grade">` + cl.map((c) => `
     <div class="clip"><video src="${esc(c.arquivo)}" controls preload="metadata" playsinline></video>
     <div class="info"><b>${esc(c.oque)} · ${esc(c.quem)}</b>
-    <div class="meta">${esc(c.time)} · ${esc(c.hora)} · ${c.periodo}º período · vídeo ${esc(c.inicio_video)}</div>
+    <div class="meta">${esc(c.time)} · ${esc(c.hora)} · ${c.periodo}º período${VARIAS ? " · câmera " + c.camera : ""} · vídeo ${esc(c.inicio_video)}</div>
     <div class="aval" data-arq="${esc(c.arquivo)}">
       <button data-v="ok">✓ Aparece</button><button data-v="cortou">Cortou</button><button data-v="errado">Errado</button></div>
     </div></div>`).join("") + `</div>`;
@@ -678,6 +762,9 @@ def main() -> None:
                          "(story/reels), na subpasta Vertical; ambos (padrão)")
     ap.add_argument("--copiar", action="store_true",
                     help="corta sem recodificar: muito mais rápido, mas o início do clipe vai para o quadro-chave anterior")
+    ap.add_argument("--reaproveitar", type=Path,
+                    help="pasta de um corte anterior deste jogo: clipe que não mudou é copiado de lá em vez de "
+                         "cortado de novo (câmera nova que chegou depois, súmula corrigida)")
     a = ap.parse_args()
 
     # O console do Windows nem sempre é UTF-8; evita quebrar com acentos e setas.
@@ -699,15 +786,22 @@ def main() -> None:
     if a.ancora and len(a.videos) > 1:
         falhar("--ancora só funciona com um vídeo. Com vários, filme o QR em cada um.")
 
-    # Sincroniza cada vídeo.
-    cobertura: list[tuple[Path, Sinc, float]] = []
+    # Sincroniza cada vídeo. Vídeo com QR de outro jogo é deixado de lado (duas quadras ao mesmo
+    # tempo, câmera de outro jogo na pasta); só falha se nenhum vídeo for deste jogo.
+    gravacoes: list[Gravacao] = []
+    de_outro_jogo: list[tuple[Path, str]] = []
     for v in a.videos:
         dur = duracao(v)
         print(f"\nVídeo: {v.name} ({fmt_tempo(dur)})")
         if a.ancora:
             s = sincronizar_ancora(sumula, ler_tempo(a.ancora))
         else:
-            s = sincronizar_qr(v, sumula, dur, a.varrer, a.varrer_tudo, max(1, a.passo))
+            try:
+                s = sincronizar_qr(v, sumula, dur, a.varrer, a.varrer_tudo, max(1, a.passo))
+            except OutroJogo as erro:
+                print(f"  OUTRO JOGO: {erro}")
+                de_outro_jogo.append((v, str(erro)))
+                continue
             if s is None:
                 print("  QR não encontrado; tentando o horário gravado pela câmera…", flush=True)
                 s = sincronizar_criacao(v, sumula, dur)
@@ -719,62 +813,112 @@ def main() -> None:
             print(f"  {d}")
         ini_h, fim_h = s.horario_de(0), s.horario_de(dur)
         print(f"  o vídeo cobre {sumula.hora(ini_h)} → {sumula.hora(fim_h)} no relógio da súmula")
-        cobertura.append((v, s, dur))
+        gravacoes.append(Gravacao(v, s, dur, ini_h, fim_h, modelo_camera(v)))
+    if not gravacoes:
+        falhar(de_outro_jogo[0][1] if len(de_outro_jogo) == 1 else
+               f"nenhum dos {len(de_outro_jogo)} vídeos é deste jogo ({sumula.id}): o QR filmado é de outro.")
+    numerar_cameras(gravacoes)
+    cameras = sorted({g.camera for g in gravacoes})
+    varias = len(cameras) > 1
+    if varias:
+        print("\nCâmeras: " + "; ".join(
+            f"{n}: {', '.join(g.video.name for g in gravacoes if g.camera == n)}" for n in cameras))
 
     pasta = a.saida or Path("highlights") / f"{slug(sumula.nome)}_{sumula.id}"
     pasta.mkdir(parents=True, exist_ok=True)
+    # Clipes do corte anterior, pelo lance, pela câmera e por tudo o que define o clipe (não pelo
+    # nome: quando chega a 2ª câmera, os da 1ª mudam para a pasta "Câmera 1" e servem do mesmo jeito).
+    antigos: dict[tuple, dict] = {}
+    if a.reaproveitar and (a.reaproveitar / "clipes.json").is_file():
+        try:
+            antigos = {(c["evento"], c["camera"], c["assinatura"]): c
+                       for c in json.loads((a.reaproveitar / "clipes.json").read_text(encoding="utf-8"))
+                       if c.get("assinatura")}
+        except (ValueError, KeyError, TypeError):
+            antigos = {}
 
     clipes, fora = [], []
     placares = sumula.placares()
-    pasta_vertical = pasta / "Vertical"
     cfg_vertical = vertical.ler_config()
-    tamanhos = {v: vertical.tamanho_video(v) for v, _, _ in cobertura} if a.formato != "original" else {}
+    tamanhos = {g.video: vertical.tamanho_video(g.video) for g in gravacoes} if a.formato != "original" else {}
+    # O vídeo é identificado pelo tamanho e pelo horário de gravação, não pelo nome: o programa do
+    # PC renomeia o vídeo bruto ao guardar na pasta do jogo, e isso não pode forçar um corte novo.
+    identidade = {g.video: (g.video.stat().st_size, inicio_gravacao_ms(g.video)) for g in gravacoes}
+    reaproveitados = 0
     print(f"\nCortando em {pasta} …")
     for i, e in enumerate(eventos, 1):
-        alvo = None
-        for v, s, dur in cobertura:
-            pts = s.video_de(e["t"])
-            if 0 <= pts <= dur:
-                alvo = (v, s, dur, pts)
-                break
         quem, oque = sumula.descrever(e)
-        if alvo is None:
-            fora.append(f"{sumula.hora(e['t'])} {oque} {quem}")
-            continue
-        v, s, dur, pts = alvo
-        # Alinhamento incerto (sem QR): alarga o clipe na mesma medida, para a jogada não ficar de fora.
-        margem = s.incerteza / 1000 if s.incerteza > 250 else 0.0
-        ini = max(0.0, pts - a.pre - margem)
-        fim = min(dur, pts + a.pos + margem)
-        nome = f"{i:03d}_{slug(sumula.time_nome(e.get('time')), 15)}_{slug(quem, 25)}_{slug(oque, 6)}.mp4"
-        print(f"  [{i:3d}/{len(eventos)}] {sumula.hora(e['t'])} {oque:>5} {quem:<28} vídeo {fmt_tempo(ini)}–{fmt_tempo(fim)}",
-              flush=True)
-        ok = a.formato == "vertical" or cortar(v, ini, fim - ini, pasta / nome, a.copiar)
-        nome_v = ""
-        if ok and a.formato != "original":
-            feito, erro = vertical.renderizar(v, ini, fim - ini, pasta_vertical / nome,
-                                              sumula.tarja(e, pts - ini, placares), cfg_vertical, tamanhos[v])
-            if feito:
-                nome_v = f"Vertical/{nome}"
+        cobriu = False
+        for n in cameras:
+            # Cada câmera dá o seu clipe do lance (o primeiro vídeo dela que pegou aquele momento).
+            alvo = next(((g, pts) for g in gravacoes if g.camera == n
+                         for pts in [g.sinc.video_de(e["t"])] if 0 <= pts <= g.dur), None)
+            if alvo is None:
+                continue
+            cobriu = True
+            g, pts = alvo
+            v, s, dur = g.video, g.sinc, g.dur
+            # Alinhamento incerto (sem QR): alarga o clipe na mesma medida, para a jogada não ficar de fora.
+            margem = s.incerteza / 1000 if s.incerteza > 250 else 0.0
+            ini = max(0.0, pts - a.pre - margem)
+            fim = min(dur, pts + a.pos + margem)
+            sub_cam = f"Câmera {n}/" if varias else ""
+            base = f"{i:03d}_{slug(sumula.time_nome(e.get('time')), 15)}_{slug(quem, 25)}_{slug(oque, 6)}.mp4"
+            nome, nome_v = f"{sub_cam}{base}", f"{sub_cam}Vertical/{base}"
+            tarja = sumula.tarja(e, pts - ini, placares)
+            arquivo = nome if a.formato != "vertical" else nome_v
+            marca = assinatura(identidade[v], round(ini, 3), round(fim, 3), a.formato, a.copiar,
+                               asdict(tarja) if a.formato != "original" else None,
+                               cfg_vertical if a.formato != "original" else None)
+            rotulo = f" câm {n}" if varias else ""
+            print(f"  [{i:3d}/{len(eventos)}]{rotulo} {sumula.hora(e['t'])} {oque:>5} {quem:<28} "
+                  f"vídeo {fmt_tempo(ini)}–{fmt_tempo(fim)}", flush=True)
+            velho = antigos.get((e["id"], n, marca))
+            # (arquivo antigo, arquivo novo) de cada versão que este formato pede
+            pares = {"original": [("arquivo", nome)], "vertical": [("vertical", nome_v)]}.get(
+                a.formato, [("arquivo", nome), ("vertical", nome_v)])
+            if (velho and a.reaproveitar
+                    and all(velho.get(k) and (a.reaproveitar / velho[k]).is_file() for k, _ in pares)):
+                for k, novo in pares:
+                    (pasta / novo).parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(a.reaproveitar / velho[k], pasta / novo)
+                reaproveitados += 1
+                ok = True
             else:
-                print(f"  vertical falhou: {erro}", file=sys.stderr)
-                ok = a.formato != "vertical"
-        if ok:
-            clipes.append({
-                "vertical": nome_v,
-                "arquivo": nome if a.formato != "vertical" else nome_v, "quem": quem, "oque": oque, "chave": e.get("jogador") or f"sem-{e.get('time')}",
-                "time": sumula.time_nome(e.get("time")), "time_id": e.get("time") or "",
-                "hora": sumula.hora(e["t"]), "periodo": e.get("periodo", 1),
-                "inicio_video": fmt_tempo(ini), "video": v.name, "evento": e["id"],
-            })
+                (pasta / nome).parent.mkdir(parents=True, exist_ok=True)
+                ok = a.formato == "vertical" or cortar(v, ini, fim - ini, pasta / nome, a.copiar)
+                if ok and a.formato != "original":
+                    (pasta / nome_v).parent.mkdir(parents=True, exist_ok=True)
+                    feito, erro = vertical.renderizar(v, ini, fim - ini, pasta / nome_v, tarja, cfg_vertical, tamanhos[v])
+                    if not feito:
+                        print(f"  vertical falhou: {erro}", file=sys.stderr)
+                        ok = a.formato != "vertical"
+                        nome_v = ""
+            if ok:
+                clipes.append({
+                    "vertical": nome_v if a.formato != "original" else "",
+                    "arquivo": arquivo, "quem": quem, "oque": oque, "chave": e.get("jogador") or f"sem-{e.get('time')}",
+                    "time": sumula.time_nome(e.get("time")), "time_id": e.get("time") or "",
+                    "hora": sumula.hora(e["t"]), "periodo": e.get("periodo", 1),
+                    "inicio_video": fmt_tempo(ini), "video": v.name, "evento": e["id"],
+                    "camera": n, "assinatura": marca,
+                })
+        if not cobriu:
+            fora.append(f"{sumula.hora(e['t'])} {oque} {quem}")
 
-    pior = max(s.incerteza for _, s, _ in cobertura)
+    pior = max(g.sinc.incerteza for g in gravacoes)
     sub = (f"{len(clipes)} clipes · {a.pre:g} s antes e {a.pos:g} s depois de cada anotação · "
-           f"sincronização por {METODOS[cobertura[0][1].metodo]} (±{pior:.0f} ms)")
+           f"sincronização por {METODOS[gravacoes[0].sinc.metodo]} (±{pior:.0f} ms)"
+           + (f" · {len(cameras)} câmeras" if varias else ""))
     galeria = gerar_galeria(pasta, sumula, clipes, sub)
     (pasta / "clipes.json").write_text(json.dumps(clipes, ensure_ascii=False, indent=2), encoding="utf-8")
+    # Para o programa do PC: que câmera é cada vídeo, e quais vídeos eram de outro jogo.
+    (pasta / "videos.json").write_text(json.dumps(
+        [{"video": str(g.video), "camera": g.camera, "modelo": g.modelo, "metodo": g.sinc.metodo} for g in gravacoes]
+        + [{"video": str(v), "outro_jogo": True, "motivo": m} for v, m in de_outro_jogo],
+        ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print(f"\n{len(clipes)} clipes gerados.")
+    print(f"\n{len(clipes)} clipes gerados" + (f" ({reaproveitados} reaproveitados do corte anterior)." if reaproveitados else "."))
     if fora:
         print(f"{len(fora)} lances ficaram fora do vídeo (a câmera não estava gravando nesse horário):")
         for f in fora:

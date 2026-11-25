@@ -58,14 +58,15 @@ def qr_img(texto: str, lado: int) -> np.ndarray:
     return cv2.cvtColor(cv2.resize(m, (lado, lado), interpolation=cv2.INTER_NEAREST), cv2.COLOR_GRAY2BGR)
 
 
-def quadro(k: int, trechos_qr: list[tuple[float, float]]) -> np.ndarray:
+def quadro(k: int, trechos_qr: list[tuple[float, float]], prefixo: str = "SDH2", inicio_ms: float = BASE,
+           id_jogo: str = ID) -> np.ndarray:
     t = k / FPS
-    real = BASE + t * 1000
+    real = inicio_ms + t * 1000
     img = np.full((H, W, 3), (70, 95, 120), np.uint8)
     cv2.rectangle(img, (40, 120), (W - 40, H - 40), (200, 200, 200), 3)
     if any(a <= t < b for a, b in trechos_qr):
         v = int((real - ATRASO_TELA_MS) // 100 * 100)
-        q = qr_img(f"SDH2:{ID.upper()}:{b36(v)}", 290)
+        q = qr_img(f"{prefixo}:{id_jogo.upper()}:{b36(v)}", 290)
         src = np.float32([[0, 0], [290, 0], [290, 290], [0, 290]])
         dst = np.float32([[500, 210], [780, 236], [762, 516], [482, 498]])
         M = cv2.getPerspectiveTransform(src, dst)
@@ -80,11 +81,14 @@ def quadro(k: int, trechos_qr: list[tuple[float, float]]) -> np.ndarray:
     return np.clip(img.astype(np.int16) + ruido, 0, 255).astype(np.uint8)
 
 
-def gerar_video(destino: Path, trechos_qr: list[tuple[float, float]], criacao_ms: float | None = None) -> Path:
+def gerar_video(destino: Path, trechos_qr: list[tuple[float, float]], criacao_ms: float | None = None,
+                prefixo: str = "SDH2", inicio_ms: float = BASE, id_jogo: str = ID) -> Path:
+    """`prefixo` SDK<n> faz o QR dizer a câmera n; `inicio_ms` é o horário real do quadro 0
+    (uma segunda câmera que começou a gravar depois)."""
     bruto = destino.with_suffix(".bruto.mp4")
     vw = cv2.VideoWriter(str(bruto), cv2.VideoWriter_fourcc(*"mp4v"), FPS, (W, H))
     for k in range(int(DUR * FPS)):
-        vw.write(quadro(k, trechos_qr))
+        vw.write(quadro(k, trechos_qr, prefixo, inicio_ms, id_jogo))
     vw.release()
     meta = []
     if criacao_ms is not None:
@@ -143,8 +147,9 @@ def ler_verdade(clipe: Path, ultimo: bool) -> int | None:
     return int(texto.split("|")[1]) if texto.startswith("TRUTH|") else None
 
 
-def rodar(sumula_json: Path, video: Path, saida: Path, extra: list[str], deve_falhar: bool = False) -> str:
-    r = subprocess.run([sys.executable, str(RAIZ / "cortar.py"), str(sumula_json), str(video),
+def rodar(sumula_json: Path, video: Path | list[Path], saida: Path, extra: list[str], deve_falhar: bool = False) -> str:
+    videos = video if isinstance(video, list) else [video]
+    r = subprocess.run([sys.executable, str(RAIZ / "cortar.py"), str(sumula_json), *map(str, videos),
                         "--saida", str(saida), "--pre", str(PRE), "--pos", str(POS), *extra],
                        capture_output=True, text=True, encoding="utf-8")
     print("    " + r.stdout.replace("\n", "\n    ").rstrip())
@@ -160,10 +165,12 @@ def rodar(sumula_json: Path, video: Path, saida: Path, extra: list[str], deve_fa
 
 
 def conferir(saida: Path, esperados: list[int], margem_ms: float = 0, tol_ms: float = TOL_MS,
-             erro_relogio_ms: float = 0) -> list[str]:
+             erro_relogio_ms: float = 0, camera: int | None = None) -> list[str]:
     """Confere as bordas de cada clipe. `margem_ms` é o alargamento que o cortar.py aplica quando o
     alinhamento é incerto; `erro_relogio_ms` é o erro conhecido do relógio da câmera no cenário."""
     clipes = json.loads((saida / "clipes.json").read_text(encoding="utf-8"))
+    if camera is not None:
+        clipes = [c for c in clipes if c.get("camera") == camera]
     erros = []
     if len(clipes) != len(esperados):
         erros.append(f"{saida.name}: esperava {len(esperados)} clipes, vieram {len(clipes)}")
@@ -227,6 +234,28 @@ def main() -> None:
         erros += conferir(d / "o6", e6, margem_ms=2000, tol_ms=2000)
         if "SEM QR" not in out:
             erros.append("[6] deveria avisar que alinhou sem QR")
+
+        print("\n[7] duas câmeras (a 2ª começou 4 s depois) + um vídeo de outro jogo na mesma leva")
+        c1 = gerar_video(d / "cam1.mp4", [(3, 9)], prefixo="SDK1")
+        c2 = gerar_video(d / "cam2.mp4", [(3, 9)], prefixo="SDK2", inicio_ms=BASE + 4000)
+        alheio = gerar_video(d / "alheio.mp4", [(3, 9)], prefixo="SDK1", id_jogo="outro9")
+        e7 = sumula(d / "s7.json", [25.0, 40.5, 60.25], [(3, 9), (7, 13)])
+        out = rodar(d / "s7.json", [c1, c2, alheio], d / "o7", [])
+        erros += conferir(d / "o7", e7, camera=1)
+        erros += conferir(d / "o7", e7, camera=2)
+        clipes7 = json.loads((d / "o7" / "clipes.json").read_text(encoding="utf-8"))
+        if not all(c["arquivo"].startswith(f"Câmera {c['camera']}/") and (d / "o7" / c["vertical"]).is_file()
+                   for c in clipes7):
+            erros.append("[7] cada câmera deveria ter a sua pasta, com a versão vertical")
+        info7 = json.loads((d / "o7" / "videos.json").read_text(encoding="utf-8"))
+        if not any(x.get("outro_jogo") and x["video"].endswith("alheio.mp4") for x in info7):
+            erros.append("[7] o vídeo de outro jogo deveria ser deixado de lado (e apontado), sem derrubar o corte")
+
+        print("\n[8] corte de novo com o anterior: nada mudou, nada é recortado")
+        out = rodar(d / "s7.json", [c1, c2], d / "o8", ["--reaproveitar", str(d / "o7")])
+        if "(6 reaproveitados" not in out:
+            erros.append("[8] os 6 clipes deveriam vir do corte anterior")
+        erros += conferir(d / "o8", e7, camera=2)
 
         print("\n[5] súmula de outro jogo")
         sumula(d / "s5.json", [25.0], [(3, 9)], id_jogo="outro9")

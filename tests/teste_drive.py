@@ -119,6 +119,31 @@ def main() -> None:
             conferir(log_corte.stat().st_mtime == antes and estado().get("estado") == "pronto",
                      "clipes entregues não são confundidos com vídeo novo")
 
+            print("Câmera 2 chegando depois (e um vídeo de outro jogo no mesmo horário)")
+            alheio = gerar_video(d / "alheio.mp4", [(3, 9)], criacao_ms=BASE, prefixo="SDK1", id_jogo="outro9")
+            shutil.copy(alheio, drive / "VID_outra_quadra.mp4")
+            cam2 = gerar_video(d / "cam2.mp4", [(3, 9)], criacao_ms=BASE + 4000, prefixo="SDK2", inicio_ms=BASE + 4000)
+            shutil.copy(cam2, drive / "VID_camera2.mp4")
+            e = esperar(lambda e: e.get("estado") == "pronto" and len(set(e.get("cameras") or [])) == 2, 400)
+            conferir(e.get("estado") == "pronto" and sorted(e.get("cameras") or []) == [1, 2],
+                     f"a câmera 2 entra no jogo já cortado: {e.get('estado')} câmeras {e.get('cameras')} {e.get('mensagem')}")
+            fim = time.time() + 30
+            while time.time() < fim and len(list(pastas_jogos()[0].glob("Vídeo - * - Câmera *.mp4"))) < 2:
+                time.sleep(0.5)
+            if pastas_jogos():
+                jogo = pastas_jogos()[0]
+                videos = sorted(p.name for p in jogo.glob("Vídeo - *.mp4"))
+                conferir(len(videos) == 2 and all("Câmera" in v for v in videos),
+                         f"os vídeos brutos ganham o número da câmera: {videos}")
+                for n in (1, 2):
+                    pasta_cam = jogo / "Cortes" / f"Câmera {n}"
+                    conferir(len(list(pasta_cam.glob("*.mp4"))) == 3 and len(list((pasta_cam / "Vertical").glob("*.mp4"))) == 3,
+                             f"Cortes/Câmera {n} com os 3 lances (horizontal e vertical)")
+            log = log_corte.read_text(encoding="utf-8")
+            conferir("(3 reaproveitados" in log, "os clipes da câmera 1 não são cortados de novo")
+            conferir((drive / "VID_outra_quadra.mp4").exists() and "VID_outra_quadra.mp4" in estado().get("tentados", []),
+                     "vídeo com QR de outro jogo fica na entrada, sem estragar este")
+
             print("Correção pelo Drive")
             dados["eventos"][-1]["removido"] = True
             time.sleep(1.1)  # o Drive guarda a nova versão com outro nome e horário mais novo

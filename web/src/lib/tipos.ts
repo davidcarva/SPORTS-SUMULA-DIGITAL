@@ -84,6 +84,8 @@ export interface Evento {
   editado_em?: number;
   /** Só em "inicio": o mesário não tocou em "Início do jogo" e o jogo começou sozinho no primeiro lance. */
   automatico?: boolean;
+  /** Só em "sync": as câmeras que filmaram o QR nesta abertura da tela (o QR leva o número). */
+  cameras?: number[];
 }
 
 /** Cabeçalho da súmula (sai no PDF e no story). */

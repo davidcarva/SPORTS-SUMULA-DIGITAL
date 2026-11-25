@@ -197,7 +197,8 @@ Os clipes e a galeria (`index.html`) ficam em `highlights/<jogo>/`.
 | `--varrer-tudo` | Vai direto para a busca do QR no vídeo inteiro. |
 | `--copiar` | Corta sem recodificar. É mais rápido, mas o clipe começa no quadro-chave anterior. |
 | `--formato ambos` | Padrão. Sai o clipe no formato filmado **e** a versão vertical. `original` ou `vertical` gera só um. |
-| vários vídeos | `cortar.py sumula.json parte1.mp4 parte2.mp4`. Cada parte é sincronizada sozinha. |
+| vários vídeos | `cortar.py sumula.json parte1.mp4 parte2.mp4`. Cada vídeo é sincronizado sozinho; partes da mesma câmera se emendam, câmeras diferentes viram ângulos. |
+| `--reaproveitar pasta` | Pasta de um corte anterior: clipe que não mudou é copiado de lá em vez de cortado de novo. |
 
 ### Versão vertical (story / reels)
 
@@ -219,6 +220,24 @@ O enquadramento muda em `cortes.json`, na pasta do projeto (todos os campos são
 - `zoom` recorta o vídeo antes de posicionar e tira teto e arquibancada de cena.
 - `largura` acima de 1 deixa o vídeo maior que a tela; as sobras são cortadas.
 - `preencher: true` tira o desfoque: o vídeo enche a tela e `recorte_x` escolhe qual parte da largura fica.
+
+## Várias câmeras (ângulos)
+
+Cada câmera filma o QR uma vez. No **Sincronizar**, escolha a câmera (1 a 4) no topo da tela,
+mostre o QR para ela até a barra encher, toque em **Câmera 2** e mostre para a segunda. O QR leva
+o código do jogo e o número da câmera.
+
+- Cada lance sai de **todas as câmeras que filmaram aquele momento**. Com mais de uma câmera, os
+  clipes ficam em `Cortes/Câmera 1/`, `Cortes/Câmera 2/`… e os vídeos brutos viram
+  "Vídeo - <jogo> - Câmera 2.mp4". Com uma só, nada muda.
+- No hub aparece **Ângulo 1 | Ângulo 2** em cima do vídeo.
+- Câmera que chega depois do corte (o vídeo dela demorou a subir) entra sozinha: o programa corta
+  só os clipes dela e reaproveita os que já existiam (não recodifica, e no Drive eles continuam o
+  mesmo arquivo).
+- Vídeo com QR de **outro jogo** (duas quadras ao mesmo tempo) é deixado de lado e fica na entrada,
+  sem estragar o corte deste.
+- App antigo (QR sem número de câmera): vídeos que se sobrepõem no tempo viram câmeras diferentes;
+  o modelo do celular gravado no arquivo ajuda a separar.
 
 ## O teste em campo: o que medir
 
