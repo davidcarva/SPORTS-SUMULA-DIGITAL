@@ -221,6 +221,52 @@ export function agruparPorPeriodo(jogos: ResumoHub[]): Pasta[] {
 export const videoDrive = (id: string) => `https://drive.google.com/file/d/${id}/preview`;
 export const abrirNoDrive = (id: string) => `https://drive.google.com/file/d/${id}/view`;
 export const baixarDoDrive = (id: string) => `https://drive.google.com/uc?export=download&id=${id}`;
+/**
+ * Chave pública da API do Drive (chave de navegador, restrita a este site e só à Drive API; não é
+ * senha). Fica em web/.env.local (VITE_CHAVE_DRIVE=...), fora do git. Com ela, o clipe toca no
+ * nosso reprodutor; sem ela, no player do Drive.
+ *
+ * Por que precisa: o endereço de download do Drive recusa pedidos de vídeo feitos de dentro de
+ * outro site (Sec-Fetch-Site: cross-site → 403). A API do Drive aceita, com uma chave.
+ */
+const CHAVE_DRIVE: string = import.meta.env.VITE_CHAVE_DRIVE ?? "";
+
+/** O arquivo do clipe em si, para o <video> (em pedaços, dá para avançar). null sem a chave. */
+export const arquivoDrive = (id: string): string | null =>
+  CHAVE_DRIVE ? `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&key=${CHAVE_DRIVE}` : null;
+/** Miniatura do vídeo, para mostrar antes de tocar. */
+export const capaDrive = (id: string, largura = 720) => `https://drive.google.com/thumbnail?id=${id}&sz=w${largura}`;
+
+function salvar(href: string, nome?: string) {
+  const a = document.createElement("a");
+  a.href = href;
+  if (nome) a.download = nome;
+  else a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/**
+ * Baixa o clipe com um nome que faz sentido ("Davi - +3 - 1ºQ - vertical.mp4"). Sem a chave (ou se
+ * a API recusar), vai pelo link de download do Drive, que funciona como navegação.
+ */
+export async function baixarClipe(id: string, nome: string): Promise<void> {
+  const arquivo = arquivoDrive(id);
+  if (arquivo) {
+    try {
+      const r = await fetch(arquivo);
+      if (!r.ok) throw new Error(String(r.status));
+      const url = URL.createObjectURL(await r.blob());
+      salvar(url, nome.replace(/[\\/:*?"<>|]+/g, "").trim() || "lance.mp4");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      return;
+    } catch {
+      /* cai no download do Drive */
+    }
+  }
+  salvar(baixarDoDrive(id));
+}
 
 export const rotuloPontos = (m: Modalidade, n: number) =>
   m === "futsal" ? `${n} gol${n === 1 ? "" : "s"}` : `${n} ponto${n === 1 ? "" : "s"}`;

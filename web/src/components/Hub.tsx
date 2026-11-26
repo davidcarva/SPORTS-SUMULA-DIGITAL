@@ -4,10 +4,12 @@ import {
   ChevronRight,
   Clock3,
   Download,
+  Expand,
   ExternalLink,
   Folder,
   FolderOpen,
   Goal,
+  Loader2,
   RectangleHorizontal,
   RectangleVertical,
   RefreshCw,
@@ -16,12 +18,12 @@ import {
   Volleyball,
 } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   abrirJogo,
   abrirNoDrive,
   agruparPorPeriodo,
-  baixarDoDrive,
+  baixarClipe,
   compartilharLink,
   type JogadorHub,
   type JogoHub,
@@ -30,7 +32,6 @@ import {
   type Pasta,
   type ResumoHub,
   rotuloPontos,
-  videoDrive,
 } from "@/lib/hub";
 import type { Modalidade } from "@/lib/regras";
 import { REGRAS } from "@/lib/regras";
@@ -43,6 +44,7 @@ import { Destaque } from "./Destaque";
 import { Folha } from "./Folha";
 import { FundoLados } from "./FundoLados";
 import { IconeBasquete } from "./IconeBasquete";
+import { Reprodutor } from "./Reprodutor";
 
 const ICONE: Record<Modalidade, React.ComponentType<{ className?: string }>> = {
   basquete: IconeBasquete,
@@ -293,8 +295,12 @@ function FolhaJogador({ jogo, jogador, inicial, onFechar }: { jogo: JogoHub; jog
   const [i, setI] = useState(inicial);
   const [aviso, setAviso] = useState("");
   const [formato, setFormato] = useState<Formato>(formatoSalvo);
+  const [baixando, setBaixando] = useState<Formato | null>(null);
   // A câmera escolhida vale para todos os lances; lance que ela não filmou mostra a primeira.
   const [camera, setCamera] = useState<number | null>(null);
+  const caixaVideo = useRef<HTMLDivElement>(null);
+  // iPhone não deixa pôr uma caixa em tela cheia; lá o botão some (o player do Drive tem o dele).
+  const podeTelaCheia = typeof document !== "undefined" && !!document.fullscreenEnabled;
   useEffect(() => setI(inicial), [inicial, jogador?.id]);
   const time = jogador ? jogo.times[jogador.time] : null;
   const lance = jogador?.lances[i];
@@ -385,20 +391,20 @@ function FolhaJogador({ jogo, jogador, inicial, onFechar }: { jogo: JogoHub; jog
             </div>
           )}
 
-          {/* O vídeo do lance pelo player do Drive: vertical com a tarja ou o horizontal como foi filmado. */}
+          {/* O vídeo do lance: vertical com a tarja ou o horizontal como foi filmado. */}
           <div
+            ref={caixaVideo}
             className={`relative mx-auto w-full overflow-hidden bg-black ${
               usado === "vertical" ? "aspect-[9/16] max-w-[min(100%,calc(58vh*9/16))]" : "aspect-video"
             }`}
           >
             {id ? (
-              <iframe
-                key={id}
-                src={videoDrive(id)}
-                title={`${l.oque} de ${jogador.nome}`}
-                allow="autoplay; fullscreen"
-                allowFullScreen
-                className="absolute inset-0 h-full w-full border-0"
+              <Reprodutor
+                id={id}
+                cor={time.cor}
+                titulo={`${l.oque} de ${jogador.nome}`}
+                vertical={usado === "vertical"}
+                onProximo={i < n - 1 ? () => setI(i + 1) : undefined}
               />
             ) : (
               <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-white/70">
@@ -443,24 +449,39 @@ function FolhaJogador({ jogo, jogador, inicial, onFechar }: { jogo: JogoHub; jog
           <div className="grid grid-cols-2 gap-2">
             {FORMATOS.map(({ f, rotulo, Icone }) => {
               const arq = (f === "vertical" ? l.v : l.o) || null;
+              const nome = `${jogador.nome} - ${l.oque} - ${l.periodo} ${l.hora.replace(":", "h")} - ${rotulo.toLowerCase()}.mp4`;
               return (
-                <a
+                <button
                   key={f}
-                  href={arq ? baixarDoDrive(arq) : undefined}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-disabled={!arq}
-                  className={`chanfro chanfro-sm flex h-11 items-center justify-center gap-1.5 font-display-reta text-xs ${
+                  type="button"
+                  disabled={!arq || baixando === f}
+                  onClick={async () => {
+                    if (!arq) return;
+                    setBaixando(f);
+                    await baixarClipe(arq, nome);
+                    setBaixando(null);
+                  }}
+                  className={`chanfro chanfro-sm flex h-11 items-center justify-center gap-1.5 font-display-reta text-xs disabled:opacity-40 ${
                     f === usado ? "bg-foreground text-background" : "bg-secondary"
-                  } ${arq ? "" : "pointer-events-none opacity-40"}`}
+                  }`}
                 >
-                  <Download className="h-4 w-4" />
-                  <Icone className="h-4 w-4" /> Baixar {rotulo.toLowerCase()}
-                </a>
+                  {baixando === f ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  <Icone className="h-4 w-4" /> {baixando === f ? "Baixando…" : `Baixar ${rotulo.toLowerCase()}`}
+                </button>
               );
             })}
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className={`grid gap-2 ${podeTelaCheia ? "grid-cols-3" : "grid-cols-2"}`}>
+            {podeTelaCheia && (
+              <button
+                type="button"
+                disabled={!id}
+                onClick={() => void caixaVideo.current?.requestFullscreen().catch(() => {})}
+                className="chanfro chanfro-sm flex h-11 items-center justify-center gap-1.5 bg-secondary font-display-reta text-xs disabled:opacity-40"
+              >
+                <Expand className="h-4 w-4" /> Tela cheia
+              </button>
+            )}
             <a
               href={id ? abrirNoDrive(id) : undefined}
               target="_blank"
