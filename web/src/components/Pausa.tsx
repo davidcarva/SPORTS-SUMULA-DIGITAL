@@ -2,10 +2,10 @@ import { CirclePause, Play, Timer } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { textoSobre } from "@/lib/cor";
-import { duracao, limitePausa, nomePausa, pausaAberta, pedidosDeTempo, periodoAtual } from "@/lib/estatisticas";
+import { duracao, ladosNaTela, limitePausa, nomePausa, pausaAberta, pedidosDeTempo, periodoAtual } from "@/lib/estatisticas";
 import { bipe } from "@/lib/som";
 import { hora } from "@/lib/tempo";
-import { type Jogo, MOTIVOS_PAUSA, type MotivoPausa, type TimeId, TIMES } from "@/lib/tipos";
+import { type Jogo, MOTIVOS_PAUSA, type MotivoPausa, type TimeId } from "@/lib/tipos";
 import { Folha } from "./Folha";
 import { useToque } from "./PainelTime";
 import { useRelogio } from "./useRelogio";
@@ -148,7 +148,7 @@ export function FolhaPausa({
 
           <p className="mb-1.5 font-display-reta text-[11px] text-muted-foreground">Pedido de tempo</p>
           <div className="grid grid-cols-2 gap-2">
-            {TIMES.map((id) => {
+            {ladosNaTela(jogo).map((id) => {
               const tm = jogo.times[id];
               // Na prorrogação do futsal não há pedido de tempo: o botão continua, sem contagem.
               const pt = pedidosDeTempo(jogo, id, per) ?? { usados: 0, limite: 0, rotulo: "" };

@@ -1,9 +1,9 @@
-import { Clapperboard, Flame, Goal, Volleyball } from "lucide-react";
+import { Clapperboard, Flame, Goal, Timer, Volleyball } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { type ConfigTime, criarJogo, montarJogadores, siglasDosTimes } from "@/lib/store";
 import { type Modalidade, MODALIDADES, REGRAS } from "@/lib/regras";
-import type { TimeId } from "@/lib/tipos";
+import type { TempoJogo, TimeId } from "@/lib/tipos";
 import { pedirAbertura } from "@/lib/abertura";
 import { ir } from "@/lib/rota";
 import { textoSobre } from "@/lib/cor";
@@ -75,8 +75,8 @@ function EscolhaModalidade({ valor, corA, corB, onMudar }: { valor: Modalidade; 
 
 /** O que muda no jogo, em uma linha, para o mesário conferir antes de começar. */
 const RESUMO: Record<Modalidade, string> = {
-  basquete: "4 quartos · +1 +2 +3 · faltas FIBA (5 exclui) · coletivas: 5ª vira lance livre",
-  futsal: "2 tempos · gol · faltas acumuladas: a 6ª vira tiro livre · cartões amarelo e vermelho · 1 tempo técnico por tempo",
+  basquete: "4 quartos com relógio · +1 +2 +3 · faltas FIBA (5 exclui) · coletivas: 5ª vira lance livre",
+  futsal: "2 tempos com relógio · gol · faltas acumuladas: a 6ª vira tiro livre · cartões amarelo e vermelho · 1 tempo técnico por tempo",
   volei: "Sets · ponto a ponto (o outro time errou: linha Erro do adversário, com o motivo) · 2 tempos por set · cartões",
 };
 
@@ -100,11 +100,84 @@ const exemplo = (): Record<TimeId, Time> => ({
 /** Linhas que já começam abertas: o mesário vai acrescentando mais com "Adicionar jogador". */
 const LINHAS_INICIAIS = 5;
 
+/**
+ * Quanto dura cada quarto (basquete) ou tempo (futsal). O relógio corre com a bola rolando, para
+ * em qualquer parada e, quando zera, o período acaba sozinho. "Sem relógio" deixa no manual.
+ */
+function EscolhaTempo({ modalidade, valor, onMudar }: { modalidade: Modalidade; valor: TempoJogo; onMudar: (t: TempoJogo) => void }) {
+  const r = REGRAS[modalidade];
+  const [outro, setOutro] = useState(false);
+  const fora = valor.periodo > 0 && !r.opcoesTempo.includes(valor.periodo);
+  const chip = (ativo: boolean) =>
+    `chanfro chanfro-sm h-11 font-display text-lg transition-colors ${ativo ? "bg-foreground text-background" : "bg-secondary text-muted-foreground"}`;
+  return (
+    <>
+      <span className="mb-2 flex items-center gap-1.5 font-display-reta text-[11px] text-muted-foreground">
+        <Timer className="h-3.5 w-3.5" /> Tempo de cada {r.umPeriodo}
+      </span>
+      <div className="grid grid-cols-6 gap-1.5" role="radiogroup" aria-label={`Minutos de cada ${r.umPeriodo}`}>
+        {r.opcoesTempo.map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={!outro && valor.periodo === m}
+            onClick={() => {
+              setOutro(false);
+              onMudar({ ...valor, periodo: m });
+            }}
+            className={chip(!outro && valor.periodo === m)}
+          >
+            {m}
+            <span className="ml-0.5 font-display-reta text-[10px]">min</span>
+          </button>
+        ))}
+        <button type="button" role="radio" aria-checked={outro || fora} onClick={() => setOutro(true)} className={chip(outro || fora)}>
+          <span className="font-display-reta text-[11px]">Outro</span>
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={!outro && valor.periodo === 0}
+          onClick={() => {
+            setOutro(false);
+            onMudar({ ...valor, periodo: 0 });
+          }}
+          className={`${chip(!outro && valor.periodo === 0)} leading-none`}
+        >
+          <span className="font-display-reta text-[10px]">Sem relógio</span>
+        </button>
+      </div>
+      {(outro || fora) && (
+        <label className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={60}
+            value={valor.periodo || ""}
+            onChange={(e) => onMudar({ ...valor, periodo: Math.max(0, Math.min(60, Math.round(Number(e.target.value) || 0))) })}
+            className="chanfro chanfro-sm h-11 w-20 bg-secondary px-3 text-center font-display text-xl text-foreground outline-none focus:ring-2 focus:ring-ring"
+            aria-label={`Minutos de cada ${r.umPeriodo}`}
+          />
+          minutos por {r.umPeriodo}
+        </label>
+      )}
+      <p className="mt-2 text-xs text-muted-foreground">
+        {valor.periodo
+          ? `${r.periodos} ${r.nomePeriodos.toLowerCase()} de ${valor.periodo} min (prorrogação de ${valor.prorrogacao} min). O relógio para em qualquer parada e, quando zera, o ${r.umPeriodo} acaba sozinho.`
+          : `Sem relógio: o fim de cada ${r.umPeriodo} é marcado à mão.`}
+      </p>
+    </>
+  );
+}
+
 function CampoTime({
   id,
   valor,
   outra,
   siglaSugerida,
+  titulares,
   onMudar,
 }: {
   id: TimeId;
@@ -112,6 +185,7 @@ function CampoTime({
   outra: string;
   /** A sigla que vale se o campo ficar vazio (já sem repetir a do outro time). */
   siglaSugerida: string;
+  titulares: number;
   onMudar: (v: Time) => void;
 }) {
   const n = montarJogadores(valor.jogadores, id).length;
@@ -149,7 +223,7 @@ function CampoTime({
       <span className="mt-3 mb-1 block font-display-reta text-[11px] text-muted-foreground">
         Jogadores · número e nome · {n} cadastrado{n === 1 ? "" : "s"}
       </span>
-      <ListaJogadores linhas={valor.jogadores} cor={valor.cor} onMudar={(jogadores) => onMudar({ ...valor, jogadores })} />
+      <ListaJogadores linhas={valor.jogadores} cor={valor.cor} titulares={titulares} onMudar={(jogadores) => onMudar({ ...valor, jogadores })} />
     </Cartao>
   );
 }
@@ -165,6 +239,9 @@ export function TelaConfig() {
   const [b, setB] = useState<Time>(() => completarLinhas(VAZIO("#ff6a00"), REGRAS[modalidadeSalva()].minJogadores));
   const [erro, setErro] = useState("");
   const minimo = REGRAS[modalidade].minJogadores;
+  // Tempo escolhido por modalidade (trocar de esporte não perde a escolha do outro).
+  const [tempos, setTempos] = useState<Partial<Record<Modalidade, TempoJogo>>>({});
+  const tempo = REGRAS[modalidade].tempo ? (tempos[modalidade] ?? (REGRAS[modalidade].tempo as TempoJogo)) : null;
 
   const escolherModalidade = (m: Modalidade) => {
     setModalidade(m);
@@ -213,7 +290,7 @@ export function TelaConfig() {
     } catch {
       /* só não lembra da próxima vez */
     }
-    criarJogo(nome, a, b, modalidade);
+    criarJogo(nome, a, b, modalidade, tempo);
     pedirAbertura();
   };
 
@@ -259,6 +336,11 @@ export function TelaConfig() {
           <span className="mb-2 block font-display-reta text-[11px] text-muted-foreground">Modalidade</span>
           <EscolhaModalidade valor={modalidade} corA={a.cor} corB={b.cor} onMudar={escolherModalidade} />
           <p className="mt-2 text-xs text-muted-foreground">{RESUMO[modalidade]}</p>
+          {tempo && (
+            <div className="mt-4 border-t border-border/70 pt-3">
+              <EscolhaTempo modalidade={modalidade} valor={tempo} onMudar={(t) => setTempos((x) => ({ ...x, [modalidade]: t }))} />
+            </div>
+          )}
         </Cartao>
       </motion.div>
 
@@ -304,6 +386,7 @@ export function TelaConfig() {
               valor={v}
               outra={id === "A" ? b.cor : a.cor}
               siglaSugerida={siglasDosTimes(a, b)[id === "A" ? 0 : 1]}
+              titulares={REGRAS[modalidade].titulares}
               onMudar={set}
             />
           </motion.div>
@@ -313,15 +396,20 @@ export function TelaConfig() {
       <motion.div variants={{ oculto: { opacity: 0 }, visivel: { opacity: 1 } }} className="flex flex-col gap-2">
         {erro && <p className="text-sm text-destructive">{erro}</p>}
         <Botao variante="cor" cor="var(--foreground)" className="h-14 w-full text-lg [--txt:var(--background)]" onClick={comecar}>
-          <Flame className="h-5 w-5" /> Começar jogo
+          <Flame className="h-5 w-5" /> Criar jogo
         </Botao>
         <button
           type="button"
           onClick={() => {
             setNome("Final — Engenharia x Direito");
             const ex = exemplo();
-            setA(ex.A);
-            setB(ex.B);
+            // No exemplo, o primeiro é o capitão e quem passa dos titulares começa no banco.
+            const elencoDe = (t: Time): Time => ({
+              ...t,
+              jogadores: t.jogadores.map((j, i) => ({ ...j, capitao: i === 0, reserva: i >= REGRAS[modalidade].titulares })),
+            });
+            setA(elencoDe(ex.A));
+            setB(elencoDe(ex.B));
             setErro("");
           }}
           className="self-center text-xs text-muted-foreground underline underline-offset-4"
@@ -329,7 +417,8 @@ export function TelaConfig() {
           Preencher com um exemplo
         </button>
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          Com a câmera gravando, toque em <b className="text-foreground">Sincronizar</b> e mostre a tela para ela. Basta uma vez.
+          Na próxima tela: com a câmera gravando, toque em <b className="text-foreground">Sincronizar</b> e mostre o QR a ela. Quando a bola
+          subir, toque em <b className="text-foreground">Iniciar jogo</b>.
         </p>
       </motion.div>
     </motion.div>

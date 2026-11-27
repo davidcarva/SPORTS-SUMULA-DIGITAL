@@ -2,7 +2,7 @@ import { Timer, Undo2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRef } from "react";
 import { textoSobre } from "@/lib/cor";
-import { estourou, faltasColetivas, nomePeriodo, pedidosDeTempo, periodoAtual, sets, situacao } from "@/lib/estatisticas";
+import { emOrdemDeQuadra, estourou, faltasColetivas, ladosNaTela, nomePeriodo, pedidosDeTempo, periodoAtual, sets, situacao } from "@/lib/estatisticas";
 import { regras } from "@/lib/regras";
 import { horarioDoToque } from "@/lib/tempo";
 import { corFalta, type Jogador, type Jogo, NOMES_FALTA, type TimeId, type TipoFalta } from "@/lib/tipos";
@@ -101,8 +101,15 @@ function Linha({
         )}
         <span className="min-w-0">
           {/* No vôlei, ponto sem jogador é sempre o adversário errando: o nome da linha já diz isso. */}
-          <span className="block truncate font-display-reta text-[15px] leading-tight">
-            {jogador ? jogador.nome : r.id === "volei" ? "Erro do adversário" : "Equipe"}
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-display-reta text-[15px] leading-tight">
+              {jogador ? jogador.nome : r.id === "volei" ? "Erro do adversário" : "Equipe"}
+            </span>
+            {jogador?.capitao && (
+              <span className="shrink-0 px-1 font-display text-[11px] leading-tight" style={{ background: time.cor, color: txt }} title="Capitão">
+                C
+              </span>
+            )}
           </span>
           <span className="mt-1 flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
             {st.excluido ? (
@@ -204,7 +211,7 @@ export function PainelTime({
     <section className="flex flex-col">
       {/* Troca de time: as duas abas têm sempre o mesmo tamanho. */}
       <div className="grid grid-cols-2 gap-2">
-        {(["A", "B"] as TimeId[]).map((id) => {
+        {ladosNaTela(jogo).map((id) => {
           const tm = jogo.times[id];
           const ativo = id === t;
           const n = faltasColetivas(jogo, id, per);
@@ -280,18 +287,14 @@ export function PainelTime({
       </div>
 
       <div className="mt-1" key={t}>
-        {time.jogadores.map((j, i) => (
-          <Linha
-            key={j.id}
-            jogo={jogo}
-            t={t}
-            jogador={j}
-            toque={toque}
-            bloqueado={bloqueado}
-            onMarcar={onMarcar}
-            onDireto={onDireto}
-            indice={i}
-          />
+        {/* Titulares em cima; os reservas embaixo, separados (continuam marcando: entram no jogo). */}
+        {emOrdemDeQuadra(time.jogadores).map((j, i, lista) => (
+          <div key={j.id}>
+            {j.reserva && !lista[i - 1]?.reserva && (
+              <p className="mt-2 border-b border-border/70 pb-1 font-display-reta text-[10px] text-muted-foreground">Reservas</p>
+            )}
+            <Linha jogo={jogo} t={t} jogador={j} toque={toque} bloqueado={bloqueado} onMarcar={onMarcar} onDireto={onDireto} indice={i} />
+          </div>
         ))}
         <Linha
           jogo={jogo}

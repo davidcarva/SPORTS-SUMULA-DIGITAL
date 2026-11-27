@@ -2,10 +2,10 @@ import { Download, FileText, Plus, Share2, X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { textoSobre } from "@/lib/cor";
-import { limites, nomePeriodo, placar, pontosNoPeriodo, sets, situacao, totalPeriodos, vencedor } from "@/lib/estatisticas";
+import { emOrdemDeQuadra, limites, nomePeriodo, placar, pontosNoPeriodo, sets, situacao, totalPeriodos, vencedor } from "@/lib/estatisticas";
 import { regras } from "@/lib/regras";
 import { baixarBlob, baixarPDF, nomeArquivo } from "@/lib/exportar";
-import { alterarCorTime, alterarInfo, alterarJogadores, alterarLimites, infoPadrao, novoJogadorId } from "@/lib/store";
+import { alterarCorTime, alterarInfo, alterarJogadores, alterarLimites, alterarTempo, infoPadrao, novoJogadorId } from "@/lib/store";
 import { carregarFontesStory, desenharStory, storyComoBlob } from "@/lib/story";
 import { corFalta, corQuarto, NOMES_FALTA, type InfoPartida, type Jogo, type LimitesPausa, type TimeId, TIMES } from "@/lib/tipos";
 import { Botao, Cartao, TituloSecao } from "./arena";
@@ -34,8 +34,8 @@ function QuadroTime({ jogo, t }: { jogo: Jogo; t: TimeId }) {
   const nPer = totalPeriodos(jogo);
   const eq = situacao(jogo, t, null);
   const linhas = [
-    ...time.jogadores.map((j) => ({ id: j.id as string | null, num: j.numero, nome: j.nome })),
-    ...(eq.cestas.length || eq.faltas.length ? [{ id: null, num: "EQ", nome: "Equipe" }] : []),
+    ...emOrdemDeQuadra(time.jogadores).map((j) => ({ id: j.id as string | null, num: j.numero, nome: j.nome, capitao: !!j.capitao, reserva: !!j.reserva })),
+    ...(eq.cestas.length || eq.faltas.length ? [{ id: null, num: "EQ", nome: "Equipe", capitao: false, reserva: false }] : []),
   ];
   const sts = linhas.map((l) => situacao(jogo, t, l.id));
   const melhor = Math.max(0, ...sts.filter((_, i) => linhas[i].id).map((s) => s.pontos));
@@ -69,6 +69,12 @@ function QuadroTime({ jogo, t }: { jogo: Jogo; t: TimeId }) {
                   </td>
                   <td className="truncate py-1.5 pr-1 font-display-reta text-[13px]">
                     {l.nome}
+                    {l.capitao && (
+                      <span className="ml-1 px-1 font-display text-[11px]" style={{ background: time.cor, color: textoSobre(time.cor) }}>
+                        C
+                      </span>
+                    )}
+                    {l.reserva && <span className="ml-1 text-[10px] text-muted-foreground">res.</span>}
                     {st.excluido && <span className="ml-1.5 bg-destructive/20 px-1 text-[10px] text-destructive">Excl.</span>}
                   </td>
                   <td className="py-1.5">
@@ -313,9 +319,42 @@ const CAMPOS_LIMITE: { k: keyof LimitesPausa; rotulo: string; minutos: boolean }
 
 function Limites({ jogo }: { jogo: Jogo }) {
   const l = limites(jogo);
+  const r = regras(jogo);
+  const tempo = jogo.jogo.tempo;
   return (
     <Cartao miolo="p-3">
       <div className="grid grid-cols-2 gap-2.5">
+        {r.tempo && (
+          <>
+            <label className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
+              Cada {r.umPeriodo} (min, 0 = sem relógio)
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={60}
+                value={tempo?.periodo ?? 0}
+                onChange={(e) => alterarTempo({ periodo: Math.max(0, Math.min(60, Math.round(Number(e.target.value) || 0))) })}
+                className="campo font-display text-lg"
+              />
+            </label>
+            <label className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
+              Prorrogação (min)
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={30}
+                value={tempo?.prorrogacao ?? r.tempo.prorrogacao}
+                onChange={(e) => {
+                  const v = Math.round(Number(e.target.value));
+                  if (v > 0) alterarTempo({ prorrogacao: Math.min(30, v) });
+                }}
+                className="campo font-display text-lg"
+              />
+            </label>
+          </>
+        )}
         {CAMPOS_LIMITE.filter((c) => c.k !== "meio" || regras(jogo).rotulosLimites.meio).map((c) => (
           <label key={c.k} className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
             {c.k === "intervalo" ? regras(jogo).rotulosLimites.intervalo : c.k === "meio" ? regras(jogo).rotulosLimites.meio : c.rotulo}

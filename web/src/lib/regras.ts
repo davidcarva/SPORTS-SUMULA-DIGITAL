@@ -1,4 +1,4 @@
-import type { Evento, Jogo, LimitesPausa, TipoFalta } from "./tipos";
+import type { Evento, Jogo, LimitesPausa, TempoJogo, TipoFalta } from "./tipos";
 
 export type Modalidade = "basquete" | "futsal" | "volei";
 export const MODALIDADES: Modalidade[] = ["basquete", "futsal", "volei"];
@@ -54,6 +54,11 @@ export interface Regras {
   porSets: boolean;
   /** Jogadores cadastrados por time, no mínimo, para começar o jogo (vôlei: os 6 da rotação). */
   minJogadores: number;
+  /** Quantos começam em quadra. */
+  titulares: number;
+  /** Relógio de cada período (null: sem relógio, como no vôlei) e as durações para escolher. */
+  tempo: TempoJogo | null;
+  opcoesTempo: number[];
 }
 
 const ord = (n: number) => `${n}º`;
@@ -92,6 +97,9 @@ const BASQUETE: Regras = {
   rotulosLimites: { intervalo: "Intervalo entre quartos (min)", meio: "Intervalo do meio (min)" },
   porSets: false,
   minJogadores: 1,
+  titulares: 5,
+  tempo: { periodo: 10, prorrogacao: 5 },
+  opcoesTempo: [5, 8, 10, 12],
 };
 
 /** Futsal (regra FIFA): 2 tempos, 5 faltas acumuladas por tempo, 1 pedido de tempo por tempo. */
@@ -123,6 +131,9 @@ const FUTSAL: Regras = {
   rotulosLimites: { intervalo: "Intervalo da prorrogação (min)", meio: "Intervalo do meio (min)" },
   porSets: false,
   minJogadores: 1,
+  titulares: 5,
+  tempo: { periodo: 20, prorrogacao: 5 },
+  opcoesTempo: [10, 15, 20, 25],
 };
 
 /** Vôlei: sets sem relógio, 2 pedidos de tempo por set, só cartões. */
@@ -153,6 +164,9 @@ const VOLEI: Regras = {
   rotulosLimites: { intervalo: "Intervalo entre sets (min)", meio: null },
   porSets: true,
   minJogadores: 6,
+  titulares: 6,
+  tempo: null,
+  opcoesTempo: [],
 };
 
 export const REGRAS: Record<Modalidade, Regras> = { basquete: BASQUETE, futsal: FUTSAL, volei: VOLEI };

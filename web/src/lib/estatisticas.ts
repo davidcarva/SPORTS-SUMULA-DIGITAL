@@ -453,3 +453,91 @@ export function pedidosDeTempo(jogo: Jogo, time: TimeId, periodo: number): { usa
   ).length;
   return { usados, limite: faixa.limite, rotulo: faixa.rotulo };
 }
+
+// ------------------------------------------------------------- relógio de jogo e lados da tela
+
+/** Os times como aparecem na tela, da esquerda para a direita (os dados não mudam). */
+export function ladosNaTela(jogo: Jogo): [TimeId, TimeId] {
+  return jogo.jogo.invertido ? ["B", "A"] : ["A", "B"];
+}
+
+/** Titulares primeiro, depois os reservas; dentro de cada grupo, a ordem do cadastro. */
+export function emOrdemDeQuadra(jogadores: Jogador[]): Jogador[] {
+  return [...jogadores.filter((j) => !j.reserva), ...jogadores.filter((j) => j.reserva)];
+}
+
+/** Quando o período começou: o "Início do jogo" no 1º; o fim do anterior nos outros. */
+export function inicioDoPeriodo(jogo: Jogo, p = periodoAtual(jogo)): number | null {
+  const ev = ativos(jogo);
+  if (p === 1) return ev.find((e) => e.tipo === "inicio")?.t ?? null;
+  return ev.filter((e) => e.tipo === "periodo")[p - 2]?.t ?? null;
+}
+
+/** Minutos do período (os da prorrogação depois dos regulamentares). 0: sem relógio. */
+export function minutosDoPeriodo(jogo: Jogo, p: number): number {
+  const t = jogo.jogo.tempo;
+  if (!t || !t.periodo) return 0;
+  return p <= regras(jogo).periodos ? t.periodo : t.prorrogacao || t.periodo;
+}
+
+export interface Relogio {
+  /** Duração do período, ms. */
+  total: number;
+  /** Tempo de bola rolando até agora, ms (paradas não contam). */
+  jogado: number;
+  restante: number;
+  /** O relógio não corre: jogo parado, não iniciado ou encerrado. */
+  parado: boolean;
+  iniciado: boolean;
+  /** Quando o tempo acabou (ms, relógio do aparelho), se já acabou. */
+  zerou: number | null;
+}
+
+/**
+ * Relógio do período atual: corre com o jogo rolando e para em qualquer parada (pedido de tempo,
+ * lesão, intervalo…). null quando o jogo não tem tempo definido (vôlei, ou "sem tempo").
+ */
+export function relogio(jogo: Jogo, agora = Date.now()): Relogio | null {
+  const p = periodoAtual(jogo);
+  const min = minutosDoPeriodo(jogo, p);
+  if (!min) return null;
+  const total = min * 60_000;
+  const ini = inicioDoPeriodo(jogo, p);
+  const encerrado = jogo.jogo.encerrado_em;
+  if (ini === null) return { total, jogado: 0, restante: total, parado: true, iniciado: false, zerou: null };
+  const fim = Math.max(ini, encerrado ?? agora);
+
+  // Paradas dentro do período, juntas quando se sobrepõem.
+  const paradas = ativos(jogo)
+    .filter((e) => e.tipo === "pausa" && (e.t_fim ?? fim) > ini && e.t < fim)
+    .map((e) => [Math.max(e.t, ini), Math.min(e.t_fim ?? fim, fim)] as [number, number])
+    .sort((a, b) => a[0] - b[0]);
+  let cursor = ini;
+  let jogado = 0;
+  let zerou: number | null = null;
+  const correr = (ate: number) => {
+    const trecho = Math.max(0, ate - cursor);
+    if (zerou === null && jogado + trecho >= total) zerou = cursor + (total - jogado);
+    jogado += trecho;
+  };
+  for (const [a, b] of paradas) {
+    if (b <= cursor) continue;
+    correr(a);
+    cursor = Math.max(cursor, b);
+  }
+  correr(fim);
+  return {
+    total,
+    jogado: Math.min(jogado, total),
+    restante: Math.max(0, total - jogado),
+    parado: !!encerrado || !!pausaAberta(jogo),
+    iniciado: true,
+    zerou,
+  };
+}
+
+/** "9:58", e o último minuto com décimos ("0:42.3") como no placar de ginásio. */
+export function relogioTexto(ms: number): string {
+  if (ms < 60_000 && ms > 0) return `0:${String(Math.floor(ms / 1000)).padStart(2, "0")}.${Math.floor((ms % 1000) / 100)}`;
+  return duracao(Math.ceil(ms / 1000) * 1000);
+}

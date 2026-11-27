@@ -2,7 +2,7 @@ import type { Modalidade } from "./regras";
 import { useSyncExternalStore } from "react";
 import { ativos, pausaAberta, periodoAtual } from "./estatisticas";
 import { novoId } from "./tempo";
-import { type Evento, FORMATO, type TipoEvento, type InfoPartida, type Jogador, type Jogo, LIMITES_PADRAO, type LimitesPausa, type MotivoPausa, type Time, type TimeId, VERSAO_APP } from "./tipos";
+import { type Evento, FORMATO, type TipoEvento, type InfoPartida, type Jogador, type Jogo, LIMITES_PADRAO, type LimitesPausa, type MotivoPausa, type TempoJogo, type Time, type TimeId, VERSAO_APP } from "./tipos";
 
 const CHAVE = "sumula-digital:v2:jogo";
 const CHAVE_COPIA = "sumula-digital:v2:copia";
@@ -72,6 +72,8 @@ export function jogoAtual(): Jogo | null {
 export interface CadastroJogador {
   numero: string;
   nome: string;
+  capitao?: boolean;
+  reserva?: boolean;
 }
 
 export interface ConfigTime {
@@ -85,14 +87,17 @@ export interface ConfigTime {
 export function montarJogadores(lista: CadastroJogador[], time: TimeId): Jogador[] {
   const usados = new Set<string>();
   return lista
-    .map((l) => ({ numero: l.numero.trim(), nome: l.nome.trim() }))
+    .map((l) => ({ ...l, numero: l.numero.trim(), nome: l.nome.trim() }))
     .filter((l) => l.numero || l.nome)
     .map((l, i) => {
       const nome = l.nome || (l.numero ? `Camisa ${l.numero}` : `Jogador ${i + 1}`);
       let id = `${time}${l.numero || `x${i + 1}`}`;
       while (usados.has(id)) id += "b";
       usados.add(id);
-      return { id, numero: l.numero, nome };
+      const j: Jogador = { id, numero: l.numero, nome };
+      if (l.capitao) j.capitao = true;
+      if (l.reserva) j.reserva = true;
+      return j;
     });
 }
 
@@ -140,7 +145,7 @@ export function siglasDosTimes(a: Pick<ConfigTime, "nome" | "sigla">, b: Pick<Co
   return [sa, sb];
 }
 
-export function criarJogo(nome: string, a: ConfigTime, b: ConfigTime, modalidade: Modalidade = "basquete"): Jogo {
+export function criarJogo(nome: string, a: ConfigTime, b: ConfigTime, modalidade: Modalidade = "basquete", tempo?: TempoJogo | null): Jogo {
   const siglas = siglasDosTimes(a, b);
   const time = (c: ConfigTime, id: TimeId): Time => ({
     nome: c.nome.trim() || `Time ${id}`,
@@ -159,6 +164,7 @@ export function criarJogo(nome: string, a: ConfigTime, b: ConfigTime, modalidade
       criado_em: Date.now(),
       fuso_minutos: -new Date().getTimezoneOffset(),
       app: VERSAO_APP,
+      ...(tempo && tempo.periodo > 0 ? { tempo } : {}),
     },
     times: { A, B },
     eventos: [],
@@ -275,6 +281,21 @@ export function alterarLimites(mudanca: Partial<LimitesPausa>) {
   const jogo = estado.jogo;
   if (!jogo) return;
   definir({ ...jogo, jogo: { ...jogo.jogo, limites: { ...LIMITES_PADRAO, ...jogo.jogo.limites, ...mudanca } } });
+}
+
+/** Os times trocaram de lado na quadra: só a tela vira, os dados continuam os mesmos. */
+export function inverterLados() {
+  const jogo = estado.jogo;
+  if (!jogo) return;
+  definir({ ...jogo, jogo: { ...jogo.jogo, invertido: !jogo.jogo.invertido } });
+}
+
+/** Muda o tempo de cada período no meio do jogo (0 desliga o relógio). */
+export function alterarTempo(mudanca: Partial<TempoJogo>) {
+  const jogo = estado.jogo;
+  if (!jogo) return;
+  const atual = jogo.jogo.tempo ?? { periodo: 0, prorrogacao: 5 };
+  definir({ ...jogo, jogo: { ...jogo.jogo, tempo: { ...atual, ...mudanca } } });
 }
 
 export function encerrarJogo() {

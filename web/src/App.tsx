@@ -1,7 +1,9 @@
-import { ChartNoAxesCombined, ClipboardList, Goal, ListOrdered, LogOut, QrCode, Volleyball } from "lucide-react";
+import { Check, ChartNoAxesCombined, ClipboardList, Goal, ListOrdered, LogOut, QrCode, Volleyball } from "lucide-react";
 import { IconeBasquete } from "@/components/IconeBasquete";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRelogio } from "@/components/useRelogio";
+import { bipe } from "@/lib/som";
 import { Dialogo, type Pergunta, ToastView, useToast } from "@/components/Avisos";
 import { AvisoAtualizacao } from "@/components/Instalacao";
 import { AberturaQuadra } from "@/components/AberturaQuadra";
@@ -25,17 +27,20 @@ import {
   estourou,
   faltasColetivas,
   fimDoPeriodo,
+  ladosNaTela,
   limitePausa,
   MOTIVOS_ERRO,
   nomePausa,
   nomePeriodo,
   pausaAberta,
   periodoAtual,
+  placarPrincipal,
   pontoPorErro,
+  relogio,
   situacao,
   ultimoLance,
 } from "@/lib/estatisticas";
-import { alterarEvento, apagarJogo, encerrarJogo, jogoAtual, pausar, registrar, retomar, sairDoJogo, useEstado } from "@/lib/store";
+import { alterarEvento, apagarJogo, encerrarJogo, inverterLados, jogoAtual, pausar, registrar, retomar, sairDoJogo, useEstado } from "@/lib/store";
 import { PainelCortes } from "@/components/PainelCortes";
 import { PainelDrive } from "@/components/PainelDrive";
 import { pedirPermissaoDeAviso, usaServidor } from "@/lib/servidor";
@@ -74,6 +79,33 @@ function mensagem(jogo: Jogo, e: Evento): string {
     if (estourou(jogo, n)) m += n === c.limite ? " · estourou" : ` · ${c.penalidade}`;
   }
   return m;
+}
+
+/**
+ * Vigia o relógio do período: apita no último minuto e, quando o tempo acaba, avisa o App uma
+ * vez por período (que fecha o período sozinho ou pergunta se encerra a partida).
+ */
+function FimDoTempo({ jogo, onZerou }: { jogo: Jogo; onZerou: (t: number, per: number) => void }) {
+  const agora = useRelogio(250);
+  const rel = relogio(jogo, agora);
+  const per = periodoAtual(jogo);
+  const chave = `${jogo.jogo.id}:${per}`;
+  const avisos = useRef({ minuto: "", zerou: "" });
+  useEffect(() => {
+    if (!rel?.iniciado || jogo.jogo.encerrado_em) return;
+    const a = avisos.current;
+    if (rel.zerou !== null) {
+      if (a.zerou === chave) return;
+      a.zerou = chave;
+      a.minuto = chave;
+      onZerou(rel.zerou, per);
+    } else if (!rel.parado && rel.restante <= 60_000 && a.minuto !== chave) {
+      a.minuto = chave;
+      bipe(1, 880);
+      navigator.vibrate?.(150);
+    }
+  });
+  return null;
 }
 
 export default function App() {
@@ -249,10 +281,13 @@ export default function App() {
     }
   };
 
-  const syncOk = estadoSync(jogo).ok;
+  const estado = estadoSync(jogo);
+  const syncOk = estado.ok;
+  // Câmeras que já viram o QR (sync antigo, sem número: câmera 1).
+  const camerasSync = [...new Set(estado.feitas.flatMap((e) => (e.cameras?.length ? e.cameras : [1])))].sort((a, b) => a - b);
 
   // Um QR basta. O aviso só aparece se a câmera ainda não viu nenhum.
-  const pedirEncerrar = () => {
+  const pedirEncerrar = (titulo = "Encerrar a partida?") => {
     const encerrar = () => {
       encerrarJogo();
       if (usaServidor()) {
@@ -266,15 +301,46 @@ export default function App() {
     };
     setPergunta(
       syncOk
-        ? { titulo: "Encerrar o jogo?", confirmar: "Encerrar", acao: encerrar }
+        ? { titulo, confirmar: "Encerrar partida", perigo: true, acao: encerrar }
         : {
-            titulo: "Encerrar o jogo?",
+            titulo,
             texto: "A câmera ainda não viu o QR. Mostre agora, com a gravação rodando, para os clipes saírem no tempo certo.",
             confirmar: "Encerrar sem sincronizar",
             extra: { rotulo: "Sincronizar agora", acao: () => setSync(true) },
             acao: encerrar,
           },
     );
+  };
+
+  /** Fecha o período em `t` e já abre o intervalo ("Retomar" quando a bola subir de novo). */
+  const fecharPeriodo = (per: number, t: number, motivo = "") => {
+    const atual = jogoAtual();
+    if (!atual) return;
+    const e = registrar({ tipo: "periodo", t });
+    const iv = e ? pausar("intervalo", e.t) : null;
+    if (e)
+      mostrar({
+        texto: `${motivo}${fimDoPeriodo(atual, per)} · intervalo correndo`,
+        cor: motivo ? "#ffd400" : undefined,
+        desfazer: () => {
+          alterarEvento(e.id, { removido: true });
+          if (iv) alterarEvento(iv.id, { removido: true });
+        },
+      });
+  };
+
+  /** O relógio do período zerou. Empatado ou antes do último período: fecha sozinho. No fim, pergunta. */
+  const tempoEsgotado = (t: number, per: number) => {
+    const atual = jogoAtual();
+    if (!atual || atual.jogo.encerrado_em) return;
+    bipe(3);
+    navigator.vibrate?.([300, 120, 300, 120, 300]);
+    const p = placarPrincipal(atual);
+    if (per >= regras(atual).periodos && p.A !== p.B) {
+      pedirEncerrar(`Tempo esgotado no ${nomePeriodo(atual, per)}. Encerrar a partida?`);
+      return;
+    }
+    fecharPeriodo(per, t, "Tempo esgotado · ");
   };
 
   const pedirSaida = () => {
@@ -310,7 +376,12 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <FundoLados a={jogo.times.A.cor} b={jogo.times.B.cor} ativo={aba === "jogo" ? timeAtivo : null} />
+      <FundoLados
+        a={jogo.times[ladosNaTela(jogo)[0]].cor}
+        b={jogo.times[ladosNaTela(jogo)[1]].cor}
+        ativo={aba === "jogo" ? (timeAtivo === ladosNaTela(jogo)[0] ? "A" : "B") : null}
+      />
+      {!jogo.jogo.encerrado_em && <FimDoTempo jogo={jogo} onZerou={tempoEsgotado} />}
       <AvisoAtualizacao jogo={jogo} />
       <div className="mx-auto flex min-h-dvh max-w-3xl flex-col px-3 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[calc(6rem+env(safe-area-inset-bottom))]">
         <header className="mb-3 flex items-center gap-3">
@@ -324,17 +395,29 @@ export default function App() {
             type="button"
             whileTap={{ scale: 0.92 }}
             onClick={() => setSync(true)}
-            className="chanfro chanfro-sm flex items-center gap-2 px-3 py-2 font-display-reta text-xs"
+            className={`chanfro chanfro-sm flex h-10 items-center gap-2 px-3 font-display-reta text-xs ${syncOk ? "ring-1 ring-inset ring-neon-volt/50" : ""}`}
             style={{
-              background: syncOk ? "var(--secondary)" : "var(--destructive)",
+              background: syncOk ? "color-mix(in oklab, var(--neon-volt) 12%, var(--secondary))" : "var(--destructive)",
               color: syncOk ? "var(--foreground)" : "#fff",
             }}
+            aria-label={syncOk ? `Sincronizado: câmeras ${camerasSync.join(", ")}. Toque para mostrar o QR de novo` : "Sincronizar com a câmera"}
           >
-            <QrCode className="h-4 w-4" /> Sincronizar
+            {syncOk ? <Check className="h-4 w-4 text-neon-volt" /> : <QrCode className="h-4 w-4 animate-pulse" />}
+            {syncOk ? (
+              <span className="flex gap-1">
+                {camerasSync.map((c) => (
+                  <span key={c} className="bg-neon-volt px-1 font-display text-sm leading-tight text-[var(--sobre-ok)]">
+                    C{c}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              "Sincronizar"
+            )}
           </motion.button>
         </header>
 
-        <Placar jogo={jogo} onSync={() => setSync(true)} />
+        <Placar jogo={jogo} onInverter={inverterLados} />
 
         {jogo.jogo.encerrado_em && (usaServidor() ? <PainelCortes jogo={jogo} /> : <PainelDrive key={envios} jogo={jogo} />)}
         {jogo.jogo.encerrado_em && (
@@ -376,7 +459,6 @@ export default function App() {
                     fechar();
                     setMarcacao(m);
                   }}
-                  onSync={() => setSync(true)}
                   onParar={(t) => {
                     fechar();
                     setParadaT(t);
@@ -391,22 +473,10 @@ export default function App() {
                     setPergunta({
                       titulo: `${fimDoPeriodo(jogo, per)}?`,
                       confirmar: `Encerrar ${nomePeriodo(jogo, per, true)}`,
-                      acao: () => {
-                        const e = registrar({ tipo: "periodo", t: Date.now() });
-                        // O intervalo começa sozinho; "Retomar" quando a bola subir de novo.
-                        const iv = e ? pausar("intervalo", e.t) : null;
-                        if (e)
-                          mostrar({
-                            texto: `${fimDoPeriodo(jogo, per)} · intervalo correndo`,
-                            desfazer: () => {
-                              alterarEvento(e.id, { removido: true });
-                              if (iv) alterarEvento(iv.id, { removido: true });
-                            },
-                          });
-                      },
+                      acao: () => fecharPeriodo(per, Date.now()),
                     });
                   }}
-                  onEncerrar={pedirEncerrar}
+                  onEncerrar={() => pedirEncerrar()}
                 />
               )}
               {aba === "analise" && <TelaAnalise jogo={jogo} />}
@@ -416,7 +486,7 @@ export default function App() {
                   jogo={jogo}
                   onEditar={setEdicao}
                   onAviso={(texto) => mostrar({ texto })}
-                  onEncerrar={pedirEncerrar}
+                  onEncerrar={() => pedirEncerrar()}
                   onNovo={() =>
                     setPergunta({
                       titulo: "Apagar este jogo?",

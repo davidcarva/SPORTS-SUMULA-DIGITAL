@@ -1,7 +1,7 @@
-import { Check, Flag, Play, QrCode, SkipForward, TriangleAlert } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { ativos, estadoSync, nomePeriodo, periodoAtual } from "@/lib/estatisticas";
-import { horaCurta } from "@/lib/tempo";
+import { Flag, Play, SkipForward } from "lucide-react";
+import { motion } from "motion/react";
+import { ativos, minutosDoPeriodo, nomePeriodo, periodoAtual } from "@/lib/estatisticas";
+import { regras } from "@/lib/regras";
 import type { Jogo, TimeId } from "@/lib/tipos";
 import { Botao } from "./arena";
 import { type LanceDireto, type Marcacao, PainelTime } from "./PainelTime";
@@ -19,7 +19,6 @@ export function TelaJogo({
   onInicio,
   onPeriodo,
   onEncerrar,
-  onSync,
   onParar,
   onRetomar,
 }: {
@@ -34,88 +33,76 @@ export function TelaJogo({
   onInicio: () => void;
   onPeriodo: () => void;
   onEncerrar: () => void;
-  onSync: () => void;
   onParar: (t: number) => void;
   onRetomar: () => void;
 }) {
   const inicio = ativos(jogo).find((e) => e.tipo === "inicio");
   const per = periodoAtual(jogo);
-  const sync = estadoSync(jogo);
-  const cameras = [...new Set(sync.feitas.flatMap((e) => e.cameras ?? []))].sort((a, b) => a - b);
   const encerrado = !!jogo.jogo.encerrado_em;
+  // Antes do "Iniciar jogo" nada corre: fim de período, encerrar, parar e a marcação ficam apagados.
+  const naoComecou = !inicio && !encerrado;
+  const min = minutosDoPeriodo(jogo, 1);
+  const r = regras(jogo);
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Faixa de altura fixa: muda de cor e texto, mas nunca empurra a grade de jogadores. */}
-      <button
-        type="button"
-        onClick={onSync}
-        className={`chanfro chanfro-sm flex h-12 items-center gap-3 px-3 text-left ring-1 ring-inset transition-colors ${
-          sync.ok ? "bg-neon-volt/10 ring-neon-volt/40" : "bg-destructive/15 ring-destructive/50"
-        }`}
-      >
-        <AnimatePresence initial={false}>{/* sem "wait": o próximo passo nunca espera o anterior sair */}
-          <motion.span
-            key={sync.ok ? "ok" : "falta"}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.18 }}
-            className="flex min-w-0 flex-1 items-center gap-2.5"
-          >
-            {sync.ok ? (
-              <Check className="h-5 w-5 shrink-0 text-neon-volt" />
-            ) : (
-              <TriangleAlert className="h-5 w-5 shrink-0 animate-pulse text-destructive" />
-            )}
-            <span className="min-w-0 truncate text-sm">
-              {sync.ok && sync.ultima ? (
-                <>
-                  {/* Só o PC confirma que a câmera filmou: aqui é "o QR foi mostrado". */}
-                  <b className="font-display text-base text-neon-volt">
-                    {cameras.length > 1 ? `QR nas câmeras ${cameras.join(", ")}` : cameras.length ? `QR na câmera ${cameras[0]}` : "QR mostrado"}
-                  </b>{" "}
-                  · {horaCurta(sync.ultima.t)}
-                </>
-              ) : (
-                <>
-                  <b className="font-display text-base text-destructive">Sem sincronia</b> · toque e mostre o QR à câmera
-                </>
-              )}
+      {/* Sempre a mesma faixa de 68 px: Iniciar (verde) → Parar jogo (amarelo) → cronômetro da parada. */}
+      {naoComecou ? (
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.97 }}
+          onClick={onInicio}
+          className="chanfro relative flex h-[68px] w-full items-center gap-3 overflow-hidden bg-neon-volt px-4 text-left text-[var(--sobre-ok)]"
+        >
+          <span className="listras absolute inset-0 opacity-15" />
+          <Play className="relative h-9 w-9 shrink-0 fill-current" strokeWidth={2.4} />
+          <span className="relative min-w-0">
+            <span className="block font-display text-[26px] leading-none">Iniciar jogo</span>
+            <span className="block truncate text-xs font-semibold opacity-80">
+              {min ? `${r.nomePeriodo(1, false)} de ${min} min · ` : ""}toque quando a bola subir
             </span>
-          </motion.span>
-        </AnimatePresence>
-        <QrCode className={`h-5 w-5 shrink-0 ${sync.ok ? "text-neon-volt" : "text-destructive"}`} />
-      </button>
+          </span>
+        </motion.button>
+      ) : (
+        !encerrado && <BarraPausa jogo={jogo} bloqueado={bloqueado} onParar={onParar} onRetomar={onRetomar} />
+      )}
 
-      {/* Os botões mantêm o tamanho e a posição depois de usados: se algo some, a grade
-          sobe e o próximo toque do mesário cai no jogador errado. */}
-      <div className="grid grid-cols-3 gap-2">
-        <Botao onClick={onInicio} disabled={!!inicio || encerrado} className="px-2 text-xs">
-          {inicio ? <Check className="h-4 w-4 text-neon-volt" /> : <Play className="h-4 w-4" />}
-          {inicio ? `Início ${horaCurta(inicio.t)}${inicio.automatico ? " · auto" : ""}` : "Início do jogo"}
-        </Botao>
-        {/* Não depende do Início: se o mesário esqueceu, o jogo começa sozinho no primeiro lance ou aqui. */}
-        <Botao onClick={onPeriodo} disabled={encerrado} className="px-2 text-xs">
+      {/* Os botões mantêm o tamanho e a posição: se algo some, a grade sobe e o próximo toque cai no jogador errado. */}
+      <div className="grid grid-cols-2 gap-2">
+        <Botao onClick={onPeriodo} disabled={naoComecou || encerrado} className="px-2 text-xs">
           <SkipForward className="h-4 w-4" /> Fim {nomePeriodo(jogo, per, true)}
         </Botao>
-        <Botao onClick={onEncerrar} disabled={encerrado} className="px-2 text-xs">
-          <Flag className="h-4 w-4" /> {encerrado ? "Encerrado" : "Encerrar"}
+        <Botao
+          variante="cor"
+          cor="#e11d2e"
+          onClick={onEncerrar}
+          disabled={naoComecou || encerrado}
+          className="px-2 text-xs [--txt:#ffffff]"
+        >
+          <Flag className="h-4 w-4" /> {encerrado ? "Partida encerrada" : "Encerrar partida"}
         </Botao>
       </div>
 
-      {/* Parar/retomar: sempre aqui, sempre do mesmo tamanho (desde antes do início, para a grade não descer). */}
-      {!encerrado && <BarraPausa jogo={jogo} bloqueado={bloqueado} onParar={onParar} onRetomar={onRetomar} />}
+      {naoComecou && (
+        <p className="text-center text-xs text-muted-foreground">
+          A marcação libera quando o jogo começar. O horário do <b className="text-foreground">Iniciar jogo</b> marca o começo do{" "}
+          {r.umPeriodo}
+          {min ? " e liga o relógio" : ""}.
+        </p>
+      )}
 
-      <PainelTime
-        jogo={jogo}
-        t={time}
-        onTrocarTime={onTrocarTime}
-        onMarcar={onMarcar}
-        onDireto={onDireto}
-        onDesfazer={onDesfazer}
-        podeDesfazer={podeDesfazer}
-        bloqueado={bloqueado || encerrado}
-      />
+      <div className={naoComecou ? "pointer-events-none opacity-35 grayscale" : undefined} aria-disabled={naoComecou}>
+        <PainelTime
+          jogo={jogo}
+          t={time}
+          onTrocarTime={onTrocarTime}
+          onMarcar={onMarcar}
+          onDireto={onDireto}
+          onDesfazer={onDesfazer}
+          podeDesfazer={podeDesfazer}
+          bloqueado={bloqueado || encerrado || naoComecou}
+        />
+      </div>
     </div>
   );
 }

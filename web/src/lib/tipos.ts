@@ -11,6 +11,16 @@ export interface Jogador {
   id: string;
   numero: string;
   nome: string;
+  /** Capitão do time (no máximo um por time; opcional). */
+  capitao?: boolean;
+  /** Começa no banco (não está entre os titulares). */
+  reserva?: boolean;
+}
+
+/** Tempo de bola rolando de cada período, em minutos. Sem isso (ou 0), o jogo não tem relógio. */
+export interface TempoJogo {
+  periodo: number;
+  prorrogacao: number;
 }
 
 export interface Time {
@@ -115,6 +125,10 @@ export interface Jogo {
     encerrado_em?: number;
     info?: InfoPartida;
     limites?: LimitesPausa;
+    /** Relógio de jogo (basquete e futsal). Ausente: sem relógio, como no vôlei. */
+    tempo?: TempoJogo;
+    /** Só a tela: o time A aparece à direita (os times trocaram de lado na quadra). */
+    invertido?: boolean;
   };
   times: Record<TimeId, Time>;
   eventos: Evento[];

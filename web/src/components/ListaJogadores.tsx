@@ -16,6 +16,8 @@ export interface LinhaJogador {
   chave: string;
   numero: string;
   nome: string;
+  capitao?: boolean;
+  reserva?: boolean;
 }
 
 let contador = 0;
@@ -136,20 +138,30 @@ export function GradeNumeros({
   );
 }
 
-/** Uma linha por jogador: número e nome. "Adicionar jogador" abre mais uma linha. */
+/**
+ * Uma linha por jogador: número, nome, C (capitão, um por time) e T/R (titular ou reserva).
+ * "Adicionar jogador" abre mais uma linha; passando dos titulares, ela já chega como reserva.
+ */
 export function ListaJogadores({
   linhas,
   cor,
+  titulares,
   onMudar,
 }: {
   linhas: LinhaJogador[];
   cor: string;
+  /** Quantos começam em quadra (5 no basquete e no futsal, 6 no vôlei). */
+  titulares: number;
   onMudar: (l: LinhaJogador[]) => void;
 }) {
   const [aberto, setAberto] = useState<string | null>(null);
   const rep = repetidos(linhas.map((l) => l.numero));
   const mudar = (chave: string, campo: "numero" | "nome", v: string) =>
     onMudar(linhas.map((l) => (l.chave === chave ? { ...l, [campo]: v } : l)));
+  const capitao = (chave: string) => onMudar(linhas.map((l) => ({ ...l, capitao: l.chave === chave ? !l.capitao : false })));
+  const reserva = (chave: string) => onMudar(linhas.map((l) => (l.chave === chave ? { ...l, reserva: !l.reserva } : l)));
+  const emQuadra = linhas.filter((l) => !l.reserva && (l.nome.trim() || l.numero)).length;
+  const txt = textoSobre(cor);
 
   return (
     <div className="flex flex-col">
@@ -157,7 +169,7 @@ export function ListaJogadores({
         const ocupados = new Set(linhas.filter((x) => x.chave !== l.chave).map((x) => x.numero));
         return (
           <div key={l.chave} className="border-b border-border/60 py-1.5 last:border-b-0">
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_40px] items-center gap-1.5">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_34px_34px_34px] items-center gap-1">
               <CampoNumero
                 valor={l.numero}
                 repetido={rep.has(l.numero)}
@@ -174,6 +186,28 @@ export function ListaJogadores({
                 className="chanfro chanfro-sm h-11 w-full min-w-0 bg-secondary px-3 outline-none focus:ring-2 focus:ring-ring"
                 aria-label={`Nome do jogador ${i + 1}`}
               />
+              <button
+                type="button"
+                onClick={() => capitao(l.chave)}
+                className="chanfro chanfro-sm grid h-11 place-items-center font-display text-base"
+                style={l.capitao ? { background: cor, color: txt } : { background: "var(--secondary)", color: "var(--muted-foreground)" }}
+                aria-pressed={!!l.capitao}
+                aria-label={`${l.capitao ? "Tirar" : "Marcar"} ${l.nome.trim() || `o jogador ${i + 1}`} como capitão`}
+                title="Capitão"
+              >
+                C
+              </button>
+              <button
+                type="button"
+                onClick={() => reserva(l.chave)}
+                className={`chanfro chanfro-sm grid h-11 place-items-center font-display text-base ${
+                  l.reserva ? "bg-transparent text-muted-foreground ring-1 ring-inset ring-border" : "bg-foreground text-background"
+                }`}
+                aria-label={`${l.nome.trim() || `Jogador ${i + 1}`}: ${l.reserva ? "reserva" : "titular"}. Toque para trocar`}
+                title={l.reserva ? "Reserva" : "Titular"}
+              >
+                {l.reserva ? "R" : "T"}
+              </button>
               <button
                 type="button"
                 onClick={() => onMudar(linhas.filter((x) => x.chave !== l.chave))}
@@ -204,13 +238,21 @@ export function ListaJogadores({
         type="button"
         onClick={() => {
           // Já chega com o próximo número livre; a grade fica fechada (dá para trocar pela seta).
-          onMudar(comNumeros(linhas, 1));
+          const nova = comNumeros(linhas, 1);
+          const ultima = nova[nova.length - 1];
+          if (linhas.filter((x) => !x.reserva).length >= titulares) ultima.reserva = true;
+          onMudar(nova);
           setAberto(null);
         }}
         className="chanfro chanfro-sm mt-2 flex h-11 items-center justify-center gap-2 font-display-reta text-sm ring-1 ring-inset ring-dashed ring-border"
       >
         <Plus className="h-4 w-4" /> Adicionar jogador
       </button>
+      <p className={`mt-2 text-xs ${emQuadra > titulares ? "text-[#ffd400]" : "text-muted-foreground"}`}>
+        <b className="text-foreground">C</b> capitão (opcional) · <b className="text-foreground">T</b> titular ·{" "}
+        <b className="text-foreground">R</b> reserva · {emQuadra} titular{emQuadra === 1 ? "" : "es"}
+        {emQuadra > titulares ? ` (o normal são ${titulares})` : ""}
+      </p>
     </div>
   );
 }

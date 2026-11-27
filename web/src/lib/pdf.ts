@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import {
   duracao,
+  emOrdemDeQuadra,
   faltasColetivas,
   nomePeriodo,
   pedidosDeTempo,
@@ -148,7 +149,11 @@ export function gerarPDF(jogo: Jogo): jsPDF {
 
     // ---- tabela do time
     let y = HB + 6;
-    const linhas = time.jogadores.map((j) => ({ nome: j.nome.toUpperCase(), num: j.numero, id: j.id as string | null }));
+    const linhas = emOrdemDeQuadra(time.jogadores).map((j) => ({
+      nome: `${j.nome.toUpperCase()}${j.capitao ? " (C)" : ""}${j.reserva ? " · RES" : ""}`,
+      num: j.numero,
+      id: j.id as string | null,
+    }));
     if (situacao(jogo, tid, null).cestas.length || situacao(jogo, tid, null).faltas.length)
       linhas.push({ nome: "EQUIPE (SEM AUTOR / BANCO)", num: "EQ", id: null });
     const sts = linhas.map((l) => situacao(jogo, tid, l.id));
